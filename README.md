@@ -22,7 +22,7 @@ yarn add @reactorui/datagrid
 pnpm add @reactorui/datagrid
 ```
 
-## Basic Usage
+## 🚀 Basic Usage
 
 import { DataGrid } from '@reactorui/datagrid';
 
@@ -35,7 +35,7 @@ function App() {
 return <DataGrid data={data} />;
 }
 
-## With Custom Columns
+## 🔧 With Custom Columns
 
 import { DataGrid, Column } from '@reactorui/datagrid';
 
@@ -45,6 +45,11 @@ name: string;
 email: string;
 status: 'active' | 'inactive';
 }
+
+const users: User[] = [
+{ id: 1, name: 'John Doe', email: 'john@example.com', status: 'active' },
+{ id: 2, name: 'Jane Smith', email: 'jane@example.com', status: 'inactive' },
+];
 
 const columns: Column<User>[] = [
 { key: 'name', label: 'Full Name', sortable: true },
@@ -64,7 +69,7 @@ function App() {
 return <DataGrid data={users} columns={columns} />;
 }
 
-## Server-Side Data
+## 🌐 Server-Side Data
 
 import { DataGrid } from '@reactorui/datagrid';
 
@@ -82,6 +87,23 @@ onDataLoad={(data) => console.log('Loaded:', data)}
 />
 );
 }
+
+## 📖 API Reference
+
+| Prop              | Type               | Default                          | Description                       |                                      |                      |
+| ----------------- | ------------------ | -------------------------------- | --------------------------------- | ------------------------------------ | -------------------- |
+| `data`            | `T[]`              | –                                | Static data array                 |                                      |                      |
+| `endpoint`        | `string`           | –                                | API endpoint for server-side data |                                      |                      |
+| `columns`         | `Column<T>[]`      | Auto                             | Column configuration              |                                      |                      |
+| `enableSearch`    | `boolean`          | `true`                           | Enable search functionality       |                                      |                      |
+| `enableSorting`   | `boolean`          | `true`                           | Enable column sorting             |                                      |                      |
+| `enableFilters`   | `boolean`          | `true`                           | Enable advanced filtering         |                                      |                      |
+| `enableSelection` | `boolean`          | `true`                           | Enable row selection              |                                      |                      |
+| `pageSize`        | `number`           | `10`                             | Client-side page size             |                                      |                      |
+| `serverPageSize`  | `number`           | `100`                            | Server request page size          |                                      |                      |
+| `variant`         | \`'default'        | 'striped'                        | 'bordered'\`                      | `'default'`                          | Visual style variant |
+| `size`            | \`'sm'             | 'md'                             | 'lg'\`                            | `'md'`                               | Size variant         |
+| `httpConfig`      | \`{ method?: 'GET' | 'POST'; bearerToken?: string }\` | –                                 | HTTP config for server-side requests |                      |
 
 ## 📚 Examples
 
