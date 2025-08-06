@@ -24,69 +24,73 @@ pnpm add @reactorui/datagrid
 
 ## 🚀 Basic Usage
 
+```tsx
 import { DataGrid } from '@reactorui/datagrid';
 
 const data = [
-{ id: 1, name: 'John Doe', email: 'john@example.com', age: 28 },
-{ id: 2, name: 'Jane Smith', email: 'jane@example.com', age: 34 },
+  { id: 1, name: 'John Doe', email: 'john@example.com', age: 28 },
+  { id: 2, name: 'Jane Smith', email: 'jane@example.com', age: 34 },
 ];
 
 function App() {
-return <DataGrid data={data} />;
+  return <DataGrid data={data} />;
 }
+```
 
-## 🔧 With Custom Columns
+## 🛠 With Custom Columns
 
+```tsx
 import { DataGrid, Column } from '@reactorui/datagrid';
 
 interface User {
-id: number;
-name: string;
-email: string;
-status: 'active' | 'inactive';
+  id: number;
+  name: string;
+  email: string;
+  status: 'active' | 'inactive';
 }
 
 const users: User[] = [
-{ id: 1, name: 'John Doe', email: 'john@example.com', status: 'active' },
-{ id: 2, name: 'Jane Smith', email: 'jane@example.com', status: 'inactive' },
+  { id: 1, name: 'John Doe', email: 'john@example.com', status: 'active' },
+  { id: 2, name: 'Jane Smith', email: 'jane@example.com', status: 'inactive' },
 ];
 
 const columns: Column<User>[] = [
-{ key: 'name', label: 'Full Name', sortable: true },
-{ key: 'email', label: 'Email Address', sortable: true },
-{
-key: 'status',
-label: 'Status',
-render: (status) => (
-<span className={`badge ${status === 'active' ? 'success' : 'danger'}`}>
-{status}
-</span>
-),
-},
+  { key: 'name', label: 'Full Name', sortable: true },
+  { key: 'email', label: 'Email Address', sortable: true },
+  {
+    key: 'status',
+    label: 'Status',
+    render: (status) => (
+      <span className={`badge ${status === 'active' ? 'success' : 'danger'}`}>{status}</span>
+    ),
+  },
 ];
 
 function App() {
-return <DataGrid data={users} columns={columns} />;
+  return <DataGrid data={users} columns={columns} />;
 }
+```
 
 ## 🌐 Server-Side Data
 
+```tsx
 import { DataGrid } from '@reactorui/datagrid';
 
 function App() {
-return (
-<DataGrid
-endpoint="/api/users"
-httpConfig={{
+  return (
+    <DataGrid
+      endpoint="/api/users"
+      httpConfig={{
         bearerToken: 'your-auth-token',
         method: 'POST',
       }}
-serverPageSize={100}
-pageSize={25}
-onDataLoad={(data) => console.log('Loaded:', data)}
-/>
-);
+      serverPageSize={100}
+      pageSize={25}
+      onDataLoad={(data) => console.log('Loaded:', data)}
+    />
+  );
 }
+```
 
 ## 📖 API Reference
 
