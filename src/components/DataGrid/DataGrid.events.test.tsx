@@ -70,13 +70,7 @@ describe('DataGrid Events', () => {
 
   it('calls onTableRefresh when refresh button is clicked', async () => {
     const onTableRefresh = jest.fn();
-    render(
-      <DataGrid
-        data={testData}
-        enableRefresh={true} // ✅ FIXED: Explicitly enable refresh
-        onTableRefresh={onTableRefresh}
-      />
-    );
+    render(<DataGrid data={testData} enableRefresh={true} onTableRefresh={onTableRefresh} />);
 
     const refreshButton = screen.getByText('Refresh');
     fireEvent.click(refreshButton);
