@@ -1,18 +1,16 @@
 # @reactorui/datagrid
 
-A high-performance, feature-rich React data grid component with TypeScript support, server-side integration, and advanced filtering capabilities.
+A high-performance, feature-rich React data grid component with TypeScript support, server-side integration, pagination and advanced filtering capabilities.
 
 ## 🖼️ Screenshots
 
 ### Light Mode
 
 ![DataGrid Light Mode](./screenshots/datagrid-light.png)
-_DataGrid with filters, search, and pagination in light mode_
 
 ### Dark Mode
 
 ![DataGrid Dark Mode](./screenshots/datagrid-dark.png)
-_DataGrid with full dark mode support and continuation token pagination_
 
 ## ✨ Features
 
