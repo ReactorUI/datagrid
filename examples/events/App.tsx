@@ -12,38 +12,44 @@ function EventsExample() {
   const [eventLog, setEventLog] = useState<string[]>([]);
 
   const logEvent = (message: string) => {
-    setEventLog(prev => [...prev.slice(-9), `${new Date().toLocaleTimeString()}: ${message}`]);
+    setEventLog((prev) => [...prev.slice(-9), `${new Date().toLocaleTimeString()}: ${message}`]);
   };
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">DataGrid Events Example</h1>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* DataGrid */}
         <div className="lg:col-span-2">
           <DataGrid
             data={sampleData}
             pageSize={3}
-            
             // Data & State Events
-            onDataLoad={(data) => logEvent(`Data loaded: ${data.items.length} items`)}
+            onDataLoad={(data) => logEvent(`Data loaded: ${data.Count} items`)}
             onDataError={(error, context) => logEvent(`Error in ${context}: ${error.message}`)}
             onLoadingStateChange={(loading, context) => logEvent(`Loading ${context}: ${loading}`)}
-            onPageChange={(page, info) => logEvent(`Page changed to ${page} (${info.start}-${info.end} of ${info.totalRecords})`)}
+            onPageChange={(page, info) =>
+              logEvent(
+                `Page changed to ${page} (${info.start}-${info.end} of ${info.totalRecords})`
+              )
+            }
             onPageSizeChange={(size, info) => logEvent(`Page size changed to ${size}`)}
             onSortChange={(sort) => logEvent(`Sort: ${sort.column} ${sort.direction}`)}
             onFilterChange={(filters) => logEvent(`Filters: ${filters.length} active`)}
             onSearchChange={(term) => logEvent(`Search: "${term}"`)}
             onTableRefresh={() => logEvent('Refresh triggered')}
-            
-            // Row & Cell Events  
+            // Row & Cell Events
             onTableRowClick={(row) => logEvent(`Row clicked: ${row.name}`)}
             onTableRowDoubleClick={(row) => logEvent(`Row double-clicked: ${row.name}`)}
-            onRowSelect={(row, selected) => logEvent(`Row ${selected ? 'selected' : 'deselected'}: ${row.name}`)}
+            onRowSelect={(row, selected) =>
+              logEvent(`Row ${selected ? 'selected' : 'deselected'}: ${row.name}`)
+            }
             onSelectionChange={(rows) => logEvent(`Selection: ${rows.length} rows selected`)}
             onTableRowHover={(row) => logEvent(row ? `Hovering: ${row.name}` : 'Hover ended')}
-            onCellClick={(value, row, column) => logEvent(`Cell clicked: ${column.label} = ${value}`)}
+            onCellClick={(value, row, column) =>
+              logEvent(`Cell clicked: ${column.label} = ${value}`)
+            }
           />
         </div>
 
