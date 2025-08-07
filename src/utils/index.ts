@@ -1,6 +1,6 @@
 import { HttpConfig, ServerRequest, ServerResponse } from '../types';
 
-// Data formatting utilities
+// Data formatting utilities (keeping existing ones)
 export const formatters = {
   date: (value: string, includeTime = false) => {
     if (!value) return '';
@@ -28,7 +28,7 @@ export const formatters = {
   },
 };
 
-// Filter comparison functions
+// Filter comparison functions (keeping existing implementation)
 export const compareValues = (
   dataValue: any,
   filterValue: any,
@@ -102,7 +102,7 @@ export const compareValues = (
   }
 };
 
-// API utilities
+// Simplified API utilities
 export const createApiRequest = async <T>(
   endpoint: string,
   request: ServerRequest,
@@ -168,45 +168,71 @@ export const createApiRequest = async <T>(
   }
 };
 
-// Map various server response formats to our standard format
+// Simplified server response mapping with flexible casing
 export const mapServerResponse = <T>(data: any): ServerResponse<T> => {
-  // Handle array format [pagedResult, metadata]
+  // Helper to get value with flexible casing
+  const getValue = (obj: any, keys: string[]) => {
+    for (const key of keys) {
+      if (obj[key] !== undefined) return obj[key];
+    }
+    return undefined;
+  };
+
+  // Get items with flexible casing
+  const items = getValue(data, ['Items', 'items', 'data', 'Data']);
+
+  // Get continuation token with flexible casing
+  const continuationToken = getValue(data, [
+    'ContinuationToken',
+    'continuationToken',
+    'continuationtoken',
+    'nextToken',
+    'next_token',
+    'NextToken',
+  ]);
+
+  // Get hasMore with flexible casing
+  const hasMore = getValue(data, [
+    'HasMore',
+    'hasMore',
+    'hasmore',
+    'has_more',
+    'hasNextPage',
+    'has_next_page',
+  ]);
+
+  // Get count with flexible casing
+  const count = getValue(data, ['Count', 'count', 'COUNT', 'total', 'Total', 'length', 'size']);
+
+  // Direct mapping for arrays
   if (Array.isArray(data)) {
-    const pagedResult = data[0];
     return {
-      items: pagedResult?.Items || pagedResult?.items || pagedResult || [],
-      count: pagedResult?.Count || pagedResult?.count || pagedResult?.length || 0,
-      hasMore: pagedResult?.HasMore || pagedResult?.hasMore || false,
+      Items: data,
+      HasMore: false,
+      Count: data.length,
     };
   }
 
-  // Handle standard formats
-  if (data.items || data.Items) {
+  // AWS DynamoDB style response (special case)
+  if (data.Items && data.LastEvaluatedKey) {
     return {
-      items: data.items || data.Items || [],
-      count: data.count || data.Count || 0,
-      hasMore: data.hasMore || data.HasMore || false,
+      Items: data.Items,
+      ContinuationToken: JSON.stringify(data.LastEvaluatedKey),
+      HasMore: !!data.LastEvaluatedKey,
+      Count: data.Count || data.Items.length,
     };
   }
 
-  // Handle pagination wrappers (Laravel, etc.)
-  if (data.data && Array.isArray(data.data)) {
-    return {
-      items: data.data,
-      count: data.total || data.count || data.data.length,
-      hasMore: data.hasNextPage || data.has_next_page || false,
-    };
-  }
-
-  // Fallback
+  // Standard response mapping
   return {
-    items: Array.isArray(data) ? data : [],
-    count: Array.isArray(data) ? data.length : 0,
-    hasMore: false,
+    Items: Array.isArray(items) ? items : [],
+    ContinuationToken: continuationToken,
+    HasMore: Boolean(hasMore),
+    Count: Number(count) || 0,
   };
 };
 
-// Sorting utilities
+// Sorting utilities (keeping existing implementation)
 export const sortData = <T>(data: T[], sortColumn: string, direction: 'asc' | 'desc'): T[] => {
   if (!sortColumn) return data;
 

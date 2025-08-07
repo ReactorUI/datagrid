@@ -6,7 +6,7 @@ export interface BaseRowData {
   [key: string]: any;
 }
 
-// Column configuration
+// Column configuration (unchanged)
 export interface Column<T = BaseRowData> {
   key: keyof T | string;
   label: string;
@@ -20,7 +20,7 @@ export interface Column<T = BaseRowData> {
   render?: (value: any, row: T, index: number) => ReactNode;
 }
 
-// Filter types
+// Filter types (unchanged)
 export interface ActiveFilter {
   column: string;
   operator: string;
@@ -29,13 +29,13 @@ export interface ActiveFilter {
   label: string;
 }
 
-// Sort configuration
+// Sort configuration (unchanged)
 export interface SortConfig {
   column: string;
   direction: 'asc' | 'desc';
 }
 
-// Pagination info
+// Simplified pagination info
 export interface PaginationInfo {
   currentPage: number;
   totalPages: number;
@@ -45,25 +45,27 @@ export interface PaginationInfo {
   end: number;
   hasNext: boolean;
   hasPrevious: boolean;
+  continuationToken?: string;
 }
 
-// Server request/response
+// Simplified server request (no sorting - that's client-side only)
 export interface ServerRequest {
   page: number;
   pageSize: number;
   search: string;
-  sortColumn: string;
-  sortDirection: 'asc' | 'desc';
   filters: ActiveFilter[];
+  continuationToken?: string;
 }
 
+// Simplified server response - exactly what you specified
 export interface ServerResponse<T = BaseRowData> {
-  items: T[];
-  count: number;
-  hasMore: boolean;
+  Items: T[];
+  ContinuationToken?: string;
+  HasMore: boolean;
+  Count: number;
 }
 
-// HTTP configuration
+// HTTP configuration (unchanged)
 export interface HttpConfig {
   bearerToken?: string;
   apiKey?: string;
@@ -74,7 +76,7 @@ export interface HttpConfig {
   timeout?: number;
 }
 
-// Event callback types (renamed to avoid HTML conflicts)
+// Event callback types (keeping existing ones, simplified)
 export type OnDataLoadCallback<T = BaseRowData> = (data: ServerResponse<T>) => void;
 export type OnDataErrorCallback = (error: Error, context: string) => void;
 export type OnLoadingStateChangeCallback = (loading: boolean, context: string) => void;
@@ -84,40 +86,52 @@ export type OnSortChangeCallback = (sortConfig: SortConfig) => void;
 export type OnFilterChangeCallback = (filters: ActiveFilter[]) => void;
 export type OnSearchChangeCallback = (searchTerm: string) => void;
 export type OnTableRowClickCallback<T = BaseRowData> = (row: T, event: React.MouseEvent) => void;
-export type OnTableRowDoubleClickCallback<T = BaseRowData> = (row: T, event: React.MouseEvent) => boolean | void;
+export type OnTableRowDoubleClickCallback<T = BaseRowData> = (
+  row: T,
+  event: React.MouseEvent
+) => boolean | void;
 export type OnRowSelectCallback<T = BaseRowData> = (row: T, isSelected: boolean) => void;
 export type OnSelectionChangeCallback<T = BaseRowData> = (selectedRows: T[]) => void;
-export type OnTableRowHoverCallback<T = BaseRowData> = (row: T | null, event: React.MouseEvent) => void;
-export type OnCellClickCallback<T = BaseRowData> = (value: any, row: T, column: Column<T>, event: React.MouseEvent) => void;
+export type OnTableRowHoverCallback<T = BaseRowData> = (
+  row: T | null,
+  event: React.MouseEvent
+) => void;
+export type OnCellClickCallback<T = BaseRowData> = (
+  value: any,
+  row: T,
+  column: Column<T>,
+  event: React.MouseEvent
+) => void;
 export type OnTableRefreshCallback = () => void;
 
-// Component props - use Omit to exclude conflicting HTML attributes
-export interface DataGridProps<T = BaseRowData> extends Omit<HTMLAttributes<HTMLDivElement>, 'onError'> {
+// Simplified component props
+export interface DataGridProps<T = BaseRowData>
+  extends Omit<HTMLAttributes<HTMLDivElement>, 'onError'> {
   // Data
   data?: T[];
   endpoint?: string;
   columns?: Column<T>[];
-  
+
   // Features
   enableSearch?: boolean;
   enableSorting?: boolean;
   enableFilters?: boolean;
   enableSelection?: boolean;
-  
+
   // Pagination
   pageSize?: number;
   serverPageSize?: number;
   pageSizeOptions?: number[];
-  
+
   // HTTP
   httpConfig?: HttpConfig;
-  
+
   // Styling
   className?: string;
   variant?: 'default' | 'striped' | 'bordered';
   size?: 'sm' | 'md' | 'lg';
-  
-  // Data & State Events (renamed to avoid conflicts)
+
+  // Event callbacks
   onDataLoad?: OnDataLoadCallback<T>;
   onDataError?: OnDataErrorCallback;
   onLoadingStateChange?: OnLoadingStateChangeCallback;
@@ -127,8 +141,6 @@ export interface DataGridProps<T = BaseRowData> extends Omit<HTMLAttributes<HTML
   onFilterChange?: OnFilterChangeCallback;
   onSearchChange?: OnSearchChangeCallback;
   onTableRefresh?: OnTableRefreshCallback;
-  
-  // Row & Cell Events (renamed to avoid conflicts)
   onTableRowClick?: OnTableRowClickCallback<T>;
   onTableRowDoubleClick?: OnTableRowDoubleClickCallback<T>;
   onRowSelect?: OnRowSelectCallback<T>;

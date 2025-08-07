@@ -342,8 +342,8 @@ interface ServerRequest {
   pageSize: number; // Items per page
   search: string; // Global search term
   sortColumn: string; // Column to sort by
-  sortDirection: 'asc' | 'desc'; // Sort direction
   filters: ActiveFilter[]; // Applied filters
+  continuationToken: // Token to grab more records (For server side pagination, if enabled)
 }
 ```
 
@@ -354,6 +354,7 @@ interface ServerResponse<T> {
   items: T[]; // Data array for current page
   count: number; // Total number of records
   hasMore: boolean; // Whether more pages available
+  continuationToken: string; // Token to grab more records (For server side pagination, if enabled)
 }
 ```
 
@@ -537,9 +538,7 @@ function LiveDataGrid() {
 
 ```tsx
 app.post('/api/users', async (req, res) => {
-  const { page, pageSize, search, sortColumn, sortDirection, filters } = JSON.parse(
-    req.body.request
-  );
+  const { page, pageSize, search, filters, continuationToken } = JSON.parse(req.body.request);
 
   let query = User.find();
 
@@ -555,23 +554,32 @@ app.post('/api/users', async (req, res) => {
 
   // Apply filters
   filters.forEach((filter) => {
-    const operator = getMongoOperator(filter.operator);
-    query = query.where(filter.column)[operator](filter.value);
+    query = query.where(filter.column)[getOperator(filter.operator)](filter.value);
   });
 
-  // Apply sorting
-  if (sortColumn) {
-    const sortOrder = sortDirection === 'asc' ? 1 : -1;
-    query = query.sort({ [sortColumn]: sortOrder });
+  // Handle continuation token (simple ID-based cursor)
+  if (continuationToken) {
+    const { lastId } = JSON.parse(Buffer.from(continuationToken, 'base64').toString());
+    query = query.where('_id').gt(lastId);
   }
 
-  const total = await User.countDocuments(query.getFilter());
-  const items = await query.skip((page - 1) * pageSize).limit(pageSize);
+  // Execute query
+  const items = await query.limit(pageSize + 1);
+  const hasMore = items.length > pageSize;
+  const resultItems = hasMore ? items.slice(0, pageSize) : items;
+
+  // Generate next token
+  let nextToken;
+  if (hasMore && resultItems.length > 0) {
+    const lastItem = resultItems[resultItems.length - 1];
+    nextToken = Buffer.from(JSON.stringify({ lastId: lastItem._id })).toString('base64');
+  }
 
   res.json({
-    items,
-    count: total,
-    hasMore: page * pageSize < total,
+    items: resultItems, // lowercase works
+    continuationToken: nextToken, // camelCase works
+    hasMore: hasMore, // camelCase works
+    count: resultItems.length, // lowercase works
   });
 });
 ```
@@ -586,29 +594,39 @@ public async Task<IActionResult> GetUsers([FromBody] DataTableRequest request)
 
     // Apply search
     if (!string.IsNullOrEmpty(request.Search))
-        query = query.Where(u => u.Name.Contains(request.Search) ||
-                                u.Email.Contains(request.Search));
+        query = query.Where(u => u.Name.Contains(request.Search) || u.Email.Contains(request.Search));
 
     // Apply filters
     foreach (var filter in request.Filters)
-    {
         query = ApplyFilter(query, filter);
+
+    // Handle continuation token
+    if (!string.IsNullOrEmpty(request.ContinuationToken))
+    {
+        var token = JsonSerializer.Deserialize<ContinuationToken>(
+            Encoding.UTF8.GetString(Convert.FromBase64String(request.ContinuationToken)));
+        query = query.Where(u => u.Id > token.LastId);
     }
 
-    // Apply sorting
-    if (!string.IsNullOrEmpty(request.SortColumn))
-        query = ApplySort(query, request.SortColumn, request.SortDirection);
+    query = query.OrderBy(u => u.Id);
+    var items = await query.Take(request.PageSize + 1).ToListAsync();
+    var hasMore = items.Count > request.PageSize;
+    var resultItems = hasMore ? items.Take(request.PageSize).ToList() : items;
 
-    var total = await query.CountAsync();
-    var items = await query
-        .Skip((request.Page - 1) * request.PageSize)
-        .Take(request.PageSize)
-        .ToListAsync();
+    string nextToken = null;
+    if (hasMore && resultItems.Any())
+    {
+        var lastItem = resultItems.Last();
+        var tokenData = new ContinuationToken { LastId = lastItem.Id };
+        nextToken = Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(tokenData)));
+    }
 
-    return Ok(new {
-        items = items,
-        count = total,
-        hasMore = (request.Page * request.PageSize) < total
+    return Ok(new
+    {
+        Items = resultItems,                    // PascalCase works
+        ContinuationToken = nextToken,          // PascalCase works
+        HasMore = hasMore,                      // PascalCase works
+        Count = resultItems.Count               // PascalCase works
     });
 }
 ```
@@ -617,37 +635,44 @@ public async Task<IActionResult> GetUsers([FromBody] DataTableRequest request)
 
 ```tsx
 Route::post('/api/users', function (Request $request) {
-    $data = json_decode($request->input('request'), true);
-
+    $requestData = json_decode($request->input('request'), true);
     $query = User::query();
 
     // Apply search
-    if (!empty($data['search'])) {
-        $query->where(function($q) use ($data) {
-            $q->where('name', 'like', "%{$data['search']}%")
-              ->orWhere('email', 'like', "%{$data['search']}%");
+    if (!empty($requestData['search'])) {
+        $query->where(function($q) use ($requestData) {
+            $q->where('name', 'like', "%{$requestData['search']}%")
+              ->orWhere('email', 'like', "%{$requestData['search']}%");
         });
     }
 
     // Apply filters
-    foreach ($data['filters'] as $filter) {
+    foreach ($requestData['filters'] as $filter) {
         $query->where($filter['column'], $filter['operator'], $filter['value']);
     }
 
-    // Apply sorting
-    if (!empty($data['sortColumn'])) {
-        $query->orderBy($data['sortColumn'], $data['sortDirection']);
+    // Handle continuation token
+    if (!empty($requestData['continuationToken'])) {
+        $tokenData = json_decode(base64_decode($requestData['continuationToken']), true);
+        $query->where('id', '>', $tokenData['lastId']);
     }
 
-    $total = $query->count();
-    $items = $query->skip(($data['page'] - 1) * $data['pageSize'])
-                   ->take($data['pageSize'])
-                   ->get();
+    $query->orderBy('id', 'asc');
+    $items = $query->take($requestData['pageSize'] + 1)->get();
+    $hasMore = $items->count() > $requestData['pageSize'];
+    $resultItems = $hasMore ? $items->take($requestData['pageSize']) : $items;
+
+    $nextToken = null;
+    if ($hasMore && $resultItems->isNotEmpty()) {
+        $lastItem = $resultItems->last();
+        $nextToken = base64_encode(json_encode(['lastId' => $lastItem->id]));
+    }
 
     return response()->json([
-        'items' => $items,
-        'count' => $total,
-        'hasMore' => ($data['page'] * $data['pageSize']) < $total
+        'data' => $resultItems->values(),       // Laravel convention works
+        'continuation_token' => $nextToken,     // snake_case works
+        'has_more' => $hasMore,                // snake_case works
+        'total' => $resultItems->count()       // Laravel convention works
     ]);
 });
 ```

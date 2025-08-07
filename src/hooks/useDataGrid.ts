@@ -1,5 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { BaseRowData, ServerRequest, ServerResponse, ActiveFilter, SortConfig, HttpConfig, PaginationInfo } from '../types';
+import {
+  BaseRowData,
+  ServerRequest,
+  ServerResponse,
+  ActiveFilter,
+  SortConfig,
+  HttpConfig,
+  PaginationInfo,
+} from '../types';
 import { createApiRequest, compareValues, sortData } from '../utils';
 
 interface UseDataGridProps<T> {
@@ -37,73 +45,104 @@ export const useDataGrid = <T extends BaseRowData>({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [serverData, setServerData] = useState<T[]>([]);
-  
+  const [lastServerResponse, setLastServerResponse] = useState<ServerResponse<T> | null>(null);
+
   // UI state
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ column: '', direction: 'asc' });
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
-  
-  // Pagination state
+
+  // Pagination state (simplified)
   const [currentPage, setCurrentPage] = useState(1);
   const [currentPageSize, setCurrentPageSize] = useState(pageSize);
-  const [totalRecords, setTotalRecords] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
+  const [continuationToken, setContinuationToken] = useState<string | undefined>();
+  const [tokenHistory, setTokenHistory] = useState<string[]>([]);
 
   // Determine data source
   const sourceData = staticData || serverData;
 
   // Internal loading state handler
-  const handleLoadingChange = useCallback((newLoading: boolean, context: string) => {
-    setLoading(newLoading);
-    onLoadingStateChange?.(newLoading, context);
-  }, [onLoadingStateChange]);
+  const handleLoadingChange = useCallback(
+    (newLoading: boolean, context: string) => {
+      setLoading(newLoading);
+      onLoadingStateChange?.(newLoading, context);
+    },
+    [onLoadingStateChange]
+  );
 
   // Internal error handler
-  const handleError = useCallback((err: Error, context: string) => {
-    const errorMessage = err.message || 'An unknown error occurred';
-    setError(errorMessage);
-    onDataError?.(err, context);
-  }, [onDataError]);
+  const handleError = useCallback(
+    (err: Error, context: string) => {
+      const errorMessage = err.message || 'An unknown error occurred';
+      setError(errorMessage);
+      onDataError?.(err, context);
+    },
+    [onDataError]
+  );
 
-  // Process data (search, filter, sort)
+  // Process data (search, filter, sort) - sorting is ALWAYS client-side
   const processedData = useMemo(() => {
     let processed = [...sourceData];
 
-    // Apply search
-    if (searchTerm) {
-      processed = processed.filter(row =>
-        Object.values(row).some(value =>
+    // Apply search (client-side for static data)
+    if (searchTerm && staticData) {
+      processed = processed.filter((row) =>
+        Object.values(row).some((value) =>
           value?.toString().toLowerCase().includes(searchTerm.toLowerCase())
         )
       );
     }
 
-    // Apply filters
-    activeFilters.forEach(filter => {
-      processed = processed.filter(row => {
-        const value = (row as any)[filter.column];
-        return compareValues(value, filter.value, filter.operator, filter.dataType);
+    // Apply filters (client-side for static data)
+    if (staticData) {
+      activeFilters.forEach((filter) => {
+        processed = processed.filter((row) => {
+          const value = (row as any)[filter.column];
+          return compareValues(value, filter.value, filter.operator, filter.dataType);
+        });
       });
-    });
+    }
 
-    // Apply sorting
+    // Apply sorting (ALWAYS client-side)
     if (sortConfig.column) {
       processed = sortData(processed, sortConfig.column, sortConfig.direction);
     }
 
     return processed;
-  }, [sourceData, searchTerm, activeFilters, sortConfig]);
+  }, [sourceData, searchTerm, activeFilters, sortConfig, staticData]);
 
-  // Paginate data
+  // Paginate data - only for client-side data
   const paginatedData = useMemo(() => {
+    if (!staticData) return sourceData; // For server-side, return as-is
+
     const start = (currentPage - 1) * currentPageSize;
     const end = start + currentPageSize;
     return processedData.slice(start, end);
-  }, [processedData, currentPage, currentPageSize]);
+  }, [processedData, currentPage, currentPageSize, staticData, sourceData]);
 
   // Pagination info
   const paginationInfo = useMemo((): PaginationInfo => {
+    if (!staticData && lastServerResponse) {
+      // Server-side pagination info
+      const displayedCount = sourceData.length;
+      const start = displayedCount === 0 ? 0 : 1;
+      const end = displayedCount;
+
+      return {
+        currentPage,
+        totalPages: 1, // Not meaningful with continuation tokens
+        pageSize: currentPageSize,
+        totalRecords: lastServerResponse.Count,
+        start,
+        end,
+        hasNext: lastServerResponse.HasMore,
+        hasPrevious: tokenHistory.length > 0,
+        continuationToken: lastServerResponse.ContinuationToken,
+      };
+    }
+
+    // Client-side pagination info
     const totalPages = Math.ceil(processedData.length / currentPageSize);
     const start = processedData.length === 0 ? 0 : (currentPage - 1) * currentPageSize + 1;
     const end = Math.min(currentPage * currentPageSize, processedData.length);
@@ -118,113 +157,248 @@ export const useDataGrid = <T extends BaseRowData>({
       hasNext: currentPage < totalPages,
       hasPrevious: currentPage > 1,
     };
-  }, [processedData.length, currentPage, currentPageSize]);
+  }, [
+    processedData.length,
+    currentPage,
+    currentPageSize,
+    staticData,
+    sourceData,
+    lastServerResponse,
+    tokenHistory.length,
+  ]);
 
   // Load server data
-  const loadServerData = useCallback(async () => {
-    if (!endpoint || staticData) return;
+  const loadServerData = useCallback(
+    async (resetPagination = false, navigationDirection?: 'next' | 'previous') => {
+      if (!endpoint || staticData) return;
 
-    handleLoadingChange(true, 'data-load');
-    setError(null);
+      handleLoadingChange(true, 'data-load');
+      setError(null);
 
-    try {
-      const request: ServerRequest = {
-        page: currentPage,
-        pageSize: serverPageSize,
-        search: searchTerm,
-        sortColumn: sortConfig.column,
-        sortDirection: sortConfig.direction,
-        filters: activeFilters,
-      };
+      try {
+        let requestToken = continuationToken;
 
-      const response = await createApiRequest<T>(endpoint, request, httpConfig);
-      
-      setServerData(response.items);
-      setTotalRecords(response.count);
-      setHasMore(response.hasMore);
-      
-      onDataLoad?.(response);
-    } catch (err) {
-      handleError(err instanceof Error ? err : new Error('Failed to load data'), 'data-load');
-    } finally {
-      handleLoadingChange(false, 'data-load');
-    }
-  }, [endpoint, staticData, currentPage, serverPageSize, searchTerm, sortConfig, activeFilters, httpConfig, onDataLoad, handleLoadingChange, handleError]);
+        // Handle navigation
+        if (resetPagination) {
+          requestToken = undefined;
+          setContinuationToken(undefined);
+          setTokenHistory([]);
+          setCurrentPage(1);
+        } else if (navigationDirection === 'previous' && tokenHistory.length > 0) {
+          // Go back to previous token
+          const newHistory = [...tokenHistory];
+          requestToken = newHistory.pop();
+          setTokenHistory(newHistory);
+          setContinuationToken(requestToken);
+        }
 
-  // Load data on mount and when dependencies change
+        const request: ServerRequest = {
+          page: currentPage,
+          pageSize: serverPageSize,
+          search: searchTerm,
+          filters: activeFilters,
+          continuationToken: requestToken,
+        };
+
+        const response = await createApiRequest<T>(endpoint, request, httpConfig);
+
+        // Handle response
+        setServerData(response.Items);
+        setLastServerResponse(response);
+
+        // Update token for next navigation
+        if (navigationDirection === 'next' && continuationToken) {
+          // Save current token to history
+          setTokenHistory((prev) => [...prev, continuationToken]);
+        }
+
+        if (response.ContinuationToken) {
+          setContinuationToken(response.ContinuationToken);
+        }
+
+        onDataLoad?.(response);
+      } catch (err) {
+        handleError(err instanceof Error ? err : new Error('Failed to load data'), 'data-load');
+      } finally {
+        handleLoadingChange(false, 'data-load');
+      }
+    },
+    [
+      endpoint,
+      staticData,
+      currentPage,
+      serverPageSize,
+      searchTerm,
+      sortConfig,
+      activeFilters,
+      continuationToken,
+      tokenHistory,
+      httpConfig,
+      onDataLoad,
+      handleLoadingChange,
+      handleError,
+    ]
+  );
+
+  // Load data on mount and when dependencies change (no sorting here - that's client-side)
   useEffect(() => {
     if (!staticData) {
-      loadServerData();
+      loadServerData(true); // Reset pagination on mount
     }
-  }, [staticData, loadServerData]);
+  }, [staticData, searchTerm, activeFilters]); // Note: sortConfig removed - sorting is client-side only
 
-  // Actions with event callbacks
-  const setSort = useCallback((column: string) => {
-    const newSortConfig: SortConfig = {
-      column,
-      direction: sortConfig.column === column && sortConfig.direction === 'asc' ? 'desc' : 'asc',
-    };
-    
-    setSortConfig(newSortConfig);
-    setCurrentPage(1);
-    onSortChange?.(newSortConfig);
-  }, [sortConfig, onSortChange]);
+  // Actions
+  const setSort = useCallback(
+    (column: string) => {
+      const newSortConfig: SortConfig = {
+        column,
+        direction: sortConfig.column === column && sortConfig.direction === 'asc' ? 'desc' : 'asc',
+      };
 
-  const setPage = useCallback((page: number) => {
-    setCurrentPage(page);
-    onPageChange?.(page, {
-      ...paginationInfo,
-      currentPage: page,
-    });
-  }, [paginationInfo, onPageChange]);
+      setSortConfig(newSortConfig);
+      onSortChange?.(newSortConfig);
 
-  const setPageSize = useCallback((newPageSize: number) => {
-    setCurrentPageSize(newPageSize);
-    setCurrentPage(1);
-    
-    const newPaginationInfo: PaginationInfo = {
-      ...paginationInfo,
-      pageSize: newPageSize,
-      currentPage: 1,
-      totalPages: Math.ceil(processedData.length / newPageSize),
-    };
-    
-    onPageSizeChange?.(newPageSize, newPaginationInfo);
-  }, [paginationInfo, processedData.length, onPageSizeChange]);
+      // No server reload needed - sorting is client-side only
+      if (staticData) {
+        setCurrentPage(1);
+      }
+    },
+    [sortConfig, onSortChange, staticData]
+  );
 
-  const updateSearchTerm = useCallback((term: string) => {
-    setSearchTerm(term);
-    setCurrentPage(1);
-    onSearchChange?.(term);
-  }, [onSearchChange]);
+  const setPage = useCallback(
+    (page: number) => {
+      if (staticData) {
+        // Client-side pagination
+        setCurrentPage(page);
+        onPageChange?.(page, {
+          ...paginationInfo,
+          currentPage: page,
+        });
+      } else {
+        // Server-side with continuation tokens doesn't support arbitrary page jumps
+        console.warn(
+          'Direct page navigation not supported with continuation tokens. Use navigateNext/navigatePrevious instead.'
+        );
+      }
+    },
+    [staticData, paginationInfo, onPageChange]
+  );
 
-  const addFilter = useCallback((filter: Omit<ActiveFilter, 'label'>) => {
-    const label = `${filter.column} ${filter.operator} "${filter.value}"`;
-    const newFilters = [
-      ...activeFilters.filter(f => f.column !== filter.column),
-      { ...filter, label },
-    ];
-    
-    setActiveFilters(newFilters);
-    setCurrentPage(1);
-    onFilterChange?.(newFilters);
-  }, [activeFilters, onFilterChange]);
+  const navigateNext = useCallback(() => {
+    if (!paginationInfo.hasNext) return;
 
-  const removeFilter = useCallback((index: number) => {
-    const newFilters = activeFilters.filter((_, i) => i !== index);
-    setActiveFilters(newFilters);
-    setCurrentPage(1);
-    onFilterChange?.(newFilters);
-  }, [activeFilters, onFilterChange]);
+    if (!staticData) {
+      // Server-side navigation
+      loadServerData(false, 'next');
+    } else {
+      // Client-side navigation
+      setPage(currentPage + 1);
+    }
+  }, [paginationInfo.hasNext, staticData, loadServerData, setPage, currentPage]);
+
+  const navigatePrevious = useCallback(() => {
+    if (!paginationInfo.hasPrevious) return;
+
+    if (!staticData) {
+      // Server-side navigation
+      loadServerData(false, 'previous');
+    } else {
+      // Client-side navigation
+      setPage(currentPage - 1);
+    }
+  }, [paginationInfo.hasPrevious, staticData, loadServerData, setPage, currentPage]);
+
+  const setPageSize = useCallback(
+    (newPageSize: number) => {
+      setCurrentPageSize(newPageSize);
+      setCurrentPage(1);
+
+      const newPaginationInfo: PaginationInfo = {
+        ...paginationInfo,
+        pageSize: newPageSize,
+        currentPage: 1,
+        totalPages: staticData ? Math.ceil(processedData.length / newPageSize) : 1,
+      };
+
+      onPageSizeChange?.(newPageSize, newPaginationInfo);
+
+      // Reset pagination for server-side
+      if (!staticData) {
+        setContinuationToken(undefined);
+        setTokenHistory([]);
+        loadServerData(true);
+      }
+    },
+    [paginationInfo, staticData, processedData.length, onPageSizeChange, loadServerData]
+  );
+
+  const updateSearchTerm = useCallback(
+    (term: string) => {
+      setSearchTerm(term);
+      onSearchChange?.(term);
+
+      // Reset pagination when search changes
+      setCurrentPage(1);
+      if (!staticData) {
+        setContinuationToken(undefined);
+        setTokenHistory([]);
+      }
+    },
+    [onSearchChange, staticData]
+  );
+
+  const addFilter = useCallback(
+    (filter: Omit<ActiveFilter, 'label'>) => {
+      const label = `${filter.column} ${filter.operator} "${filter.value}"`;
+      const newFilters = [
+        ...activeFilters.filter((f) => f.column !== filter.column),
+        { ...filter, label },
+      ];
+
+      setActiveFilters(newFilters);
+      onFilterChange?.(newFilters);
+
+      // Reset pagination when filters change
+      setCurrentPage(1);
+      if (!staticData) {
+        setContinuationToken(undefined);
+        setTokenHistory([]);
+      }
+    },
+    [activeFilters, onFilterChange, staticData]
+  );
+
+  const removeFilter = useCallback(
+    (index: number) => {
+      const newFilters = activeFilters.filter((_, i) => i !== index);
+      setActiveFilters(newFilters);
+      onFilterChange?.(newFilters);
+
+      // Reset pagination when filters change
+      setCurrentPage(1);
+      if (!staticData) {
+        setContinuationToken(undefined);
+        setTokenHistory([]);
+      }
+    },
+    [activeFilters, onFilterChange, staticData]
+  );
 
   const clearFilters = useCallback(() => {
     setActiveFilters([]);
-    setCurrentPage(1);
     onFilterChange?.([]);
-  }, [onFilterChange]);
+
+    // Reset pagination when filters change
+    setCurrentPage(1);
+    if (!staticData) {
+      setContinuationToken(undefined);
+      setTokenHistory([]);
+    }
+  }, [onFilterChange, staticData]);
 
   const selectRow = useCallback((rowId: string, selected: boolean) => {
-    setSelectedRows(prev => {
+    setSelectedRows((prev) => {
       const newSet = new Set(prev);
       if (selected) {
         newSet.add(rowId);
@@ -235,14 +409,18 @@ export const useDataGrid = <T extends BaseRowData>({
     });
   }, []);
 
-  const selectAll = useCallback((selected: boolean) => {
-    if (selected) {
-      const allIds = paginatedData.map(row => String(row.id)).filter(Boolean);
-      setSelectedRows(new Set(allIds));
-    } else {
-      setSelectedRows(new Set());
-    }
-  }, [paginatedData]);
+  const selectAll = useCallback(
+    (selected: boolean) => {
+      if (selected) {
+        const currentPageData = staticData ? paginatedData : sourceData;
+        const allIds = currentPageData.map((row) => String(row.id)).filter(Boolean);
+        setSelectedRows(new Set(allIds));
+      } else {
+        setSelectedRows(new Set());
+      }
+    },
+    [staticData, paginatedData, sourceData]
+  );
 
   const refresh = useCallback(() => {
     if (staticData) {
@@ -251,7 +429,7 @@ export const useDataGrid = <T extends BaseRowData>({
       setSortConfig({ column: '', direction: 'asc' });
       setCurrentPage(1);
     } else {
-      loadServerData();
+      loadServerData(true);
     }
   }, [staticData, loadServerData]);
 
@@ -259,10 +437,10 @@ export const useDataGrid = <T extends BaseRowData>({
     // Data
     data: sourceData,
     processedData,
-    paginatedData,
+    paginatedData: staticData ? paginatedData : sourceData,
     loading,
     error,
-    
+
     // State
     searchTerm,
     activeFilters,
@@ -270,24 +448,27 @@ export const useDataGrid = <T extends BaseRowData>({
     selectedRows,
     currentPage,
     currentPageSize,
-    totalRecords,
-    hasMore,
-    
+    totalRecords: paginationInfo.totalRecords,
+    hasMore: paginationInfo.hasNext,
+    continuationToken: paginationInfo.continuationToken,
+
     // Actions
     setSearchTerm: updateSearchTerm,
     setSort,
     setCurrentPage: setPage,
     setCurrentPageSize: setPageSize,
+    navigateNext,
+    navigatePrevious,
     addFilter,
     removeFilter,
     clearFilters,
     selectRow,
     selectAll,
     refresh,
-    
+
     // Computed
     paginationInfo,
-    selectedData: sourceData.filter(row => selectedRows.has(String(row.id))),
+    selectedData: sourceData.filter((row) => selectedRows.has(String(row.id))),
     hasSelection: selectedRows.size > 0,
   };
 };
