@@ -275,34 +275,6 @@ function UserManagement() {
 }
 ```
 
-## 📖 Complete API Reference
-
-**DataGrid Props**
-
-| **Prop**               | **Type**                               | **Default**        | **Description**                          |
-| ---------------------- | -------------------------------------- | ------------------ | ---------------------------------------- |
-| **Data Configuration** |                                        |                    |                                          |
-| `data`                 | `T[]`                                  | –                  | Static data array for client-side mode   |
-| `endpoint`             | `string`                               | –                  | API endpoint for server-side data        |
-| `columns`              | `Column<T>[]`                          | Auto-detected      | Column configuration array               |
-| **Feature Toggles**    |                                        |                    |                                          |
-| `enableSearch`         | `boolean`                              | `true`             | Enable global search functionality       |
-| `enableSorting`        | `boolean`                              | `true`             | Enable column sorting                    |
-| `enableFilters`        | `boolean`                              | `true`             | Enable advanced filtering                |
-| `enableSelection`      | `boolean`                              | `true`             | Enable row selection with checkboxes     |
-| **Pagination**         |                                        |                    |                                          |
-| `pageSize`             | `number`                               | `10`               | Client-side pagination size              |
-| `serverPageSize`       | `number`                               | `100`              | Server request batch size                |
-| `pageSizeOptions`      | `number[]`                             | `[5,10,25,50,100]` | Available page size options              |
-| **Styling**            |                                        |                    |                                          |
-| `variant`              | `'default' \| 'striped' \| 'bordered'` | `'default'`        | Visual theme variant                     |
-| `size`                 | `'sm' \| 'md' \| 'lg'`                 | `'md'`             | Size variant for padding and text        |
-| `className`            | `string`                               | `''`               | Additional CSS classes                   |
-| **HTTP Configuration** |                                        |                    |                                          |
-| `httpConfig`           | `HttpConfig`                           | –                  | Authentication and request configuration |
-| **Refresh Controls**   |                                        |                    |                                          |
-| `showRefreshButton`    | `boolean`                              | `true`             | Show/hide the refresh button             |
-
 ## Column Configuration
 
 ```tsx
@@ -388,27 +360,29 @@ interface ServerResponse<T> {
 
 **DataGrid Props**
 
-| **Prop**               | **Type**                               | **Default**            | **Description**                          |
-| ---------------------- | -------------------------------------- | ---------------------- | ---------------------------------------- |
-| **Data Configuration** |                                        |                        |                                          |
-| `data`                 | `T[]`                                  | `-`                    | Static data array for client-side mode   |
-| `endpoint`             | `string`                               | `-`                    | API endpoint for server-side data        |
-| `columns`              | `Column<T>[]`                          | auto-detected          | Column configuration array               |
-| **Feature Toggles**    |                                        |                        |                                          |
-| `enableSearch`         | `boolean`                              | `true`                 | Enable global search functionality       |
-| `enableSorting`        | `boolean`                              | `true`                 | Enable column sorting                    |
-| `enableFilters`        | `boolean`                              | `true`                 | Enable advanced filtering                |
-| `enableSelection`      | `boolean`                              | `true`                 | Enable row selection with checkboxes     |
-| **Pagination**         |                                        |                        |                                          |
-| `pageSize`             | `number`                               | `10`                   | Client-side pagination size              |
-| `serverPageSize`       | `number`                               | `100`                  | Server request batch size                |
-| `pageSizeOptions`      | `number[]`                             | `[5, 10, 25, 50, 100]` | Available page size options              |
-| **Styling**            |                                        |                        |                                          |
-| `variant`              | `'default' \| 'striped' \| 'bordered'` | `'default'`            | Visual theme variant                     |
-| `size`                 | `'sm' \| 'md' \| 'lg'`                 | `'md'`                 | Size variant for padding and text        |
-| `className`            | `string`                               | `''`                   | Additional CSS classes                   |
-| **HTTP Configuration** |                                        |                        |                                          |
-| `httpConfig`           | `HttpConfig`                           | `-`                    | Authentication and request configuration |
+| **Prop**               | **Type**                               | **Default**        | **Description**                          |
+| ---------------------- | -------------------------------------- | ------------------ | ---------------------------------------- |
+| **Data Configuration** |                                        |                    |                                          |
+| `data`                 | `T[]`                                  | –                  | Static data array for client-side mode   |
+| `endpoint`             | `string`                               | –                  | API endpoint for server-side data        |
+| `columns`              | `Column<T>[]`                          | Auto-detected      | Column configuration array               |
+| **Feature Toggles**    |                                        |                    |                                          |
+| `enableSearch`         | `boolean`                              | `true`             | Enable global search functionality       |
+| `enableSorting`        | `boolean`                              | `true`             | Enable column sorting                    |
+| `enableFilters`        | `boolean`                              | `true`             | Enable advanced filtering                |
+| `enableSelection`      | `boolean`                              | `true`             | Enable row selection with checkboxes     |
+| **Pagination**         |                                        |                    |                                          |
+| `pageSize`             | `number`                               | `10`               | Client-side pagination size              |
+| `serverPageSize`       | `number`                               | `100`              | Server request batch size                |
+| `pageSizeOptions`      | `number[]`                             | `[5,10,25,50,100]` | Available page size options              |
+| **Styling**            |                                        |                    |                                          |
+| `variant`              | `'default' \| 'striped' \| 'bordered'` | `'default'`        | Visual theme variant                     |
+| `size`                 | `'sm' \| 'md' \| 'lg'`                 | `'md'`             | Size variant for padding and text        |
+| `className`            | `string`                               | `''`               | Additional CSS classes                   |
+| **HTTP Configuration** |                                        |                    |                                          |
+| `httpConfig`           | `HttpConfig`                           | –                  | Authentication and request configuration |
+| **Refresh Controls**   |                                        |                    |                                          |
+| `showRefreshButton`    | `boolean`                              | `true`             | Show/hide the refresh button             |
 
 ## 🎨 Theming & Styling
 
