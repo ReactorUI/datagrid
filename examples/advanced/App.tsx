@@ -104,7 +104,7 @@ function AdvancedExample() {
         size="md"
         pageSize={5}
         onSelectionChange={handleSelectionChange}
-        onRowDoubleClick={handleRowDoubleClick}
+        onTableRowDoubleClick={handleRowDoubleClick}
         enableSearch={true}
         enableSorting={true}
         enableFilters={true}

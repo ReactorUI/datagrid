@@ -5,12 +5,16 @@ A high-performance, feature-rich React data grid component with TypeScript suppo
 ## ✨ Features
 
 - 🚀 **High Performance** - Optimized rendering and data processing
-- 🔍 **Advanced Filtering** - Type-aware filters with multiple operators
+- 🔍 **Advanced Filtering** - Type-aware filters with multiple operators (string, number, date, boolean)
 - 🔄 **Flexible Data Sources** - Static data or server-side with any API
 - 📱 **Responsive Design** - Mobile-first with touch-friendly interactions
 - 🎨 **Customizable Theming** - Multiple built-in variants and custom styling
-- ♿ **Accessibility First** - WCAG compliant with keyboard navigation
-- 🔧 **TypeScript Native** - Full type safety and IntelliSense support
+- 🌙 **Dark Mode Ready** - Built-in dark mode support with CSS variables
+- ♿ **Accessibility First** - WCAG compliant with keyboard navigation and ARIA labels
+- 🔧 **TypeScript Native** - Full type safety and comprehensive IntelliSense support
+- 🎯 **Rich Event System** - 15+ events covering every user interaction
+- 🔐 **Secure Authentication** - Bearer token, API key, and custom header support
+- ⚡ **Zero Dependencies** - Only React as peer dependency
 
 ## 📦 Installation
 
@@ -37,7 +41,7 @@ function App() {
 }
 ```
 
-## 🛠 With Custom Columns
+## 🛠 With Custom Columns & Styling
 
 ```tsx
 import { DataGrid, Column } from '@reactorui/datagrid';
@@ -47,27 +51,57 @@ interface User {
   name: string;
   email: string;
   status: 'active' | 'inactive';
+  joinDate: string;
 }
 
-const users: User[] = [
-  { id: 1, name: 'John Doe', email: 'john@example.com', status: 'active' },
-  { id: 2, name: 'Jane Smith', email: 'jane@example.com', status: 'inactive' },
-];
-
 const columns: Column<User>[] = [
-  { key: 'name', label: 'Full Name', sortable: true },
+  {
+    key: 'name',
+    label: 'Full Name',
+    sortable: true,
+    render: (value, row) => (
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm">
+          {value.charAt(0)}
+        </div>
+        {value}
+      </div>
+    ),
+  },
   { key: 'email', label: 'Email Address', sortable: true },
   {
     key: 'status',
     label: 'Status',
+    dataType: 'string',
     render: (status) => (
-      <span className={`badge ${status === 'active' ? 'success' : 'danger'}`}>{status}</span>
+      <span
+        className={`px-2 py-1 text-xs font-medium rounded-full ${
+          status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+        }`}
+      >
+        {status}
+      </span>
     ),
+  },
+  {
+    key: 'joinDate',
+    label: 'Join Date',
+    dataType: 'date',
+    sortable: true,
   },
 ];
 
 function App() {
-  return <DataGrid data={users} columns={columns} />;
+  return (
+    <DataGrid
+      data={users}
+      columns={columns}
+      variant="bordered"
+      size="comfortable"
+      enableSelection={true}
+      onSelectionChange={(selected) => console.log('Selected:', selected)}
+    />
+  );
 }
 ```
 
@@ -81,44 +115,639 @@ function App() {
     <DataGrid
       endpoint="/api/users"
       httpConfig={{
-        bearerToken: 'your-auth-token',
+        bearerToken: 'your-jwt-token',
         method: 'POST',
+        postDataFormat: 'json',
+        customHeaders: {
+          'X-Custom-Header': 'value',
+        },
       }}
       serverPageSize={100}
       pageSize={25}
-      onDataLoad={(data) => console.log('Loaded:', data)}
+      onDataLoad={(data) => console.log(`Loaded ${data.items.length} items`)}
+      onDataError={(error, context) => console.error(`Error in ${context}:`, error)}
     />
   );
 }
 ```
 
-## 📖 API Reference
+## 🎯 Comprehensive Event System
 
-| Prop              | Type               | Default                          | Description                       |                                      |                      |
-| ----------------- | ------------------ | -------------------------------- | --------------------------------- | ------------------------------------ | -------------------- |
-| `data`            | `T[]`              | –                                | Static data array                 |                                      |                      |
-| `endpoint`        | `string`           | –                                | API endpoint for server-side data |                                      |                      |
-| `columns`         | `Column<T>[]`      | Auto                             | Column configuration              |                                      |                      |
-| `enableSearch`    | `boolean`          | `true`                           | Enable search functionality       |                                      |                      |
-| `enableSorting`   | `boolean`          | `true`                           | Enable column sorting             |                                      |                      |
-| `enableFilters`   | `boolean`          | `true`                           | Enable advanced filtering         |                                      |                      |
-| `enableSelection` | `boolean`          | `true`                           | Enable row selection              |                                      |                      |
-| `pageSize`        | `number`           | `10`                             | Client-side page size             |                                      |                      |
-| `serverPageSize`  | `number`           | `100`                            | Server request page size          |                                      |                      |
-| `variant`         | \`'default'        | 'striped'                        | 'bordered'\`                      | `'default'`                          | Visual style variant |
-| `size`            | \`'sm'             | 'md'                             | 'lg'\`                            | `'md'`                               | Size variant         |
-| `httpConfig`      | \`{ method?: 'GET' | 'POST'; bearerToken?: string }\` | –                                 | HTTP config for server-side requests |                      |
+The DataGrid provides 15+ events covering every user interaction:
+
+```tsx
+<DataGrid
+  data={users}
+  // Data loading events
+  onDataLoad={(data) => {
+    console.log('Data loaded:', data.items.length);
+    hideLoadingSpinner();
+  }}
+  onDataError={(error, context) => {
+    console.error(`Error in ${context}:`, error.message);
+    showErrorToast(error.message);
+  }}
+  onLoadingStateChange={(loading, context) => {
+    setIsLoading(loading);
+    console.log(`${context} loading: ${loading}`);
+  }}
+  // Pagination events
+  onPageChange={(page, paginationInfo) => {
+    console.log(`Page ${page} of ${paginationInfo.totalPages}`);
+    updateUrl(`?page=${page}`);
+  }}
+  onPageSizeChange={(pageSize, paginationInfo) => {
+    console.log(`Showing ${pageSize} items per page`);
+    saveUserPreference('pageSize', pageSize);
+  }}
+  // Interaction events
+  onSortChange={(sortConfig) => {
+    console.log(`Sorted by ${sortConfig.column} ${sortConfig.direction}`);
+    updateUrl(`?sort=${sortConfig.column}&order=${sortConfig.direction}`);
+  }}
+  onFilterChange={(filters) => {
+    console.log(`${filters.length} filters active`);
+    setBadgeCount(filters.length);
+  }}
+  onSearchChange={(searchTerm) => {
+    console.log(`Searching for: "${searchTerm}"`);
+    trackSearchQuery(searchTerm);
+  }}
+  onTableRefresh={() => {
+    console.log('Table refreshed');
+    showSuccessMessage('Data refreshed');
+  }}
+/>
+```
+
+**Row & Cell Interaction Events**<br>
+
+```tsx
+<DataGrid
+  data={users}
+  // Row interaction events
+  onTableRowClick={(row, event) => {
+    console.log('Row clicked:', row.name);
+    highlightRow(row.id);
+  }}
+  onTableRowDoubleClick={(row, event) => {
+    console.log('Row double-clicked:', row.name);
+    openEditModal(row);
+    return false; // Prevent default selection behavior
+  }}
+  onTableRowHover={(row, event) => {
+    if (row) {
+      console.log('Hovering over:', row.name);
+      showPreviewTooltip(row);
+    } else {
+      hidePreviewTooltip();
+    }
+  }}
+  // Selection events
+  onRowSelect={(row, isSelected) => {
+    console.log(`${row.name} ${isSelected ? 'selected' : 'deselected'}`);
+    updateRowActions(row, isSelected);
+  }}
+  onSelectionChange={(selectedRows) => {
+    console.log(`${selectedRows.length} rows selected`);
+    setBulkActionsEnabled(selectedRows.length > 0);
+    updateSelectionToolbar(selectedRows);
+  }}
+  // Cell interaction events
+  onCellClick={(value, row, column, event) => {
+    console.log(`Clicked ${column.label}: ${value}`);
+    if (column.key === 'email') {
+      window.open(`mailto:${value}`);
+    }
+  }}
+/>
+```
+
+## Real-World Event Usage Example
+
+```tsx
+import React, { useState } from 'react';
+import { DataGrid } from '@reactorui/datagrid';
+
+function UserManagement() {
+  const [loading, setLoading] = useState(false);
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  return (
+    <div>
+      {/* Bulk Actions Toolbar */}
+      {selectedUsers.length > 0 && (
+        <div className="bg-blue-50 p-4 mb-4 rounded">
+          <span className="font-medium">{selectedUsers.length} users selected</span>
+          <div className="ml-4 space-x-2">
+            <button onClick={() => bulkExport(selectedUsers)}>Export</button>
+            <button onClick={() => bulkDeactivate(selectedUsers)}>Deactivate</button>
+            <button onClick={() => bulkDelete(selectedUsers)}>Delete</button>
+          </div>
+        </div>
+      )}
+
+      {/* DataGrid with comprehensive event handling */}
+      <DataGrid
+        endpoint="/api/users"
+        enableSelection={true}
+        // Sync with component state
+        onLoadingStateChange={(loading) => setLoading(loading)}
+        onPageChange={(page) => setCurrentPage(page)}
+        onSelectionChange={(users) => setSelectedUsers(users)}
+        // User interaction handlers
+        onTableRowDoubleClick={(user) => openUserProfile(user.id)}
+        onDataError={(error) => showErrorNotification(error.message)}
+        onTableRefresh={() => showSuccessMessage('Users refreshed')}
+        // Analytics tracking
+        onSearchChange={(term) => analytics.track('users_searched', { term })}
+        onSortChange={(sort) => analytics.track('users_sorted', { column: sort.column })}
+        onFilterChange={(filters) => analytics.track('users_filtered', { count: filters.length })}
+      />
+
+      {/* Status indicators */}
+      <div className="mt-4 text-sm text-gray-500">
+        Page {currentPage} • {selectedUsers.length} selected • {loading ? 'Loading...' : 'Ready'}
+      </div>
+    </div>
+  );
+}
+```
+
+## 📖 Complete API Reference
+
+**DataGrid Props**
+
+| **Prop**               | **Type**                               | **Default**        | **Description**                          |
+| ---------------------- | -------------------------------------- | ------------------ | ---------------------------------------- |
+| **Data Configuration** |                                        |                    |                                          |
+| `data`                 | `T[]`                                  | –                  | Static data array for client-side mode   |
+| `endpoint`             | `string`                               | –                  | API endpoint for server-side data        |
+| `columns`              | `Column<T>[]`                          | Auto-detected      | Column configuration array               |
+| **Feature Toggles**    |                                        |                    |                                          |
+| `enableSearch`         | `boolean`                              | `true`             | Enable global search functionality       |
+| `enableSorting`        | `boolean`                              | `true`             | Enable column sorting                    |
+| `enableFilters`        | `boolean`                              | `true`             | Enable advanced filtering                |
+| `enableSelection`      | `boolean`                              | `true`             | Enable row selection with checkboxes     |
+| **Pagination**         |                                        |                    |                                          |
+| `pageSize`             | `number`                               | `10`               | Client-side pagination size              |
+| `serverPageSize`       | `number`                               | `100`              | Server request batch size                |
+| `pageSizeOptions`      | `number[]`                             | `[5,10,25,50,100]` | Available page size options              |
+| **Styling**            |                                        |                    |                                          |
+| `variant`              | `'default' \| 'striped' \| 'bordered'` | `'default'`        | Visual theme variant                     |
+| `size`                 | `'sm' \| 'md' \| 'lg'`                 | `'md'`             | Size variant for padding and text        |
+| `className`            | `string`                               | `''`               | Additional CSS classes                   |
+| **HTTP Configuration** |                                        |                    |                                          |
+| `httpConfig`           | `HttpConfig`                           | –                  | Authentication and request configuration |
+
+## Column Configuration
+
+```tsx
+interface Column<T> {
+  key: keyof T | string; // Data property key
+  label: string; // Display header label
+  sortable?: boolean; // Enable sorting (default: true)
+  filterable?: boolean; // Enable in advanced filters (default: true)
+  dataType?: 'string' | 'number' | 'boolean' | 'date' | 'datetime';
+  width?: string | number; // Fixed column width
+  minWidth?: string | number; // Minimum column width
+  maxWidth?: string | number; // Maximum column width
+  align?: 'left' | 'center' | 'right';
+  render?: (value: any, row: T, index: number) => ReactNode;
+}
+```
+
+## HTTP Configuration
+
+```tsx
+interface HttpConfig {
+  bearerToken?: string; // Authorization: Bearer <token>
+  apiKey?: string; // X-API-Key header
+  customHeaders?: Record<string, string>;
+  method?: 'GET' | 'POST'; // HTTP method (default: GET)
+  postDataFormat?: 'form' | 'json'; // POST body format
+  withCredentials?: boolean; // Include cookies
+  timeout?: number; // Request timeout in ms
+}
+```
+
+# Server Request & Response Format
+
+**Request sent to your API:**
+
+```tsx
+interface ServerRequest {
+  page: number; // Current page number
+  pageSize: number; // Items per page
+  search: string; // Global search term
+  sortColumn: string; // Column to sort by
+  sortDirection: 'asc' | 'desc'; // Sort direction
+  filters: ActiveFilter[]; // Applied filters
+}
+```
+
+**Expected response format:**
+
+```tsx
+interface ServerResponse<T> {
+  items: T[]; // Data array for current page
+  count: number; // Total number of records
+  hasMore: boolean; // Whether more pages available
+}
+```
+
+### Event Callbacks
+
+| **Event**               | **Signature**                                                        | **Description**                              |
+| ----------------------- | -------------------------------------------------------------------- | -------------------------------------------- |
+| **Data & State Events** |                                                                      |                                              |
+| `onDataLoad`            | `(data: ServerResponse<T>) => void`                                  | Called when server data loads successfully   |
+| `onDataError`           | `(error: Error, context: string) => void`                            | Called when any error occurs                 |
+| `onLoadingStateChange`  | `(loading: boolean, context: string) => void`                        | Called when loading state changes            |
+| `onPageChange`          | `(page: number, paginationInfo: PaginationInfo) => void`             | Called when user navigates pages             |
+| `onPageSizeChange`      | `(size: number, paginationInfo: PaginationInfo) => void`             | Called when page size changes                |
+| `onSortChange`          | `(sortConfig: SortConfig) => void`                                   | Called when sorting changes                  |
+| `onFilterChange`        | `(filters: ActiveFilter[]) => void`                                  | Called when filters change                   |
+| `onSearchChange`        | `(searchTerm: string) => void`                                       | Called when search term changes              |
+| `onTableRefresh`        | `() => void`                                                         | Called when refresh is triggered             |
+| **Row & Cell Events**   |                                                                      |                                              |
+| `onTableRowClick`       | `(row: T, event: MouseEvent) => void`                                | Called on single row click                   |
+| `onTableRowDoubleClick` | `(row: T, event: MouseEvent) => boolean \| void`                     | Called on row double-click                   |
+| `onRowSelect`           | `(row: T, isSelected: boolean) => void`                              | Called when individual row selection changes |
+| `onSelectionChange`     | `(selectedRows: T[]) => void`                                        | Called when overall selection changes        |
+| `onTableRowHover`       | `(row: T \| null, event: MouseEvent) => void`                        | Called when hovering over rows               |
+| `onCellClick`           | `(value: any, row: T, column: Column<T>, event: MouseEvent) => void` | Called when clicking individual cells        |
+
+|
+
+## 📖 Complete API Reference
+
+**DataGrid Props**
+
+| **Prop**               | **Type**                               | **Default**            | **Description**                          |
+| ---------------------- | -------------------------------------- | ---------------------- | ---------------------------------------- |
+| **Data Configuration** |                                        |                        |                                          |
+| `data`                 | `T[]`                                  | `-`                    | Static data array for client-side mode   |
+| `endpoint`             | `string`                               | `-`                    | API endpoint for server-side data        |
+| `columns`              | `Column<T>[]`                          | auto-detected          | Column configuration array               |
+| **Feature Toggles**    |                                        |                        |                                          |
+| `enableSearch`         | `boolean`                              | `true`                 | Enable global search functionality       |
+| `enableSorting`        | `boolean`                              | `true`                 | Enable column sorting                    |
+| `enableFilters`        | `boolean`                              | `true`                 | Enable advanced filtering                |
+| `enableSelection`      | `boolean`                              | `true`                 | Enable row selection with checkboxes     |
+| **Pagination**         |                                        |                        |                                          |
+| `pageSize`             | `number`                               | `10`                   | Client-side pagination size              |
+| `serverPageSize`       | `number`                               | `100`                  | Server request batch size                |
+| `pageSizeOptions`      | `number[]`                             | `[5, 10, 25, 50, 100]` | Available page size options              |
+| **Styling**            |                                        |                        |                                          |
+| `variant`              | `'default' \| 'striped' \| 'bordered'` | `'default'`            | Visual theme variant                     |
+| `size`                 | `'sm' \| 'md' \| 'lg'`                 | `'md'`                 | Size variant for padding and text        |
+| `className`            | `string`                               | `''`                   | Additional CSS classes                   |
+| **HTTP Configuration** |                                        |                        |                                          |
+| `httpConfig`           | `HttpConfig`                           | `-`                    | Authentication and request configuration |
+
+## 🎨 Theming & Styling
+
+```tsx
+// Clean, minimal design
+<DataGrid variant="default" data={data} />
+
+// Alternating row colors
+<DataGrid variant="striped" data={data} />
+
+// Full borders around cells
+<DataGrid variant="bordered" data={data} />
+```
+
+**Size Variants**
+
+```tsx
+// Compact spacing
+<DataGrid size="sm" data={data} />
+
+// Standard spacing (default)
+<DataGrid size="md" data={data} />
+
+// Comfortable spacing
+<DataGrid size="lg" data={data} />
+```
+
+**Dark Mode Support**<br>
+The DataGrid automatically adapts to dark mode when using Tailwind CSS:
+
+```tsx
+// Wrap in dark mode provider
+<div className="dark">
+  <DataGrid data={data} />
+</div>
+```
+
+**Custom Styling**<br>
+
+```tsx
+<DataGrid
+  data={data}
+  className="shadow-xl rounded-xl overflow-hidden"
+  // Add custom CSS classes for complete control
+/>
+```
+
+## 🔧 Advanced Usage
+
+**Custom Styling**<br>
+
+```tsx
+const columns: Column<Employee>[] = [
+  {
+    key: 'employee',
+    label: 'Employee',
+    render: (_, employee) => (
+      <div className="flex items-center space-x-3">
+        <img src={employee.avatar} alt={employee.name} className="w-10 h-10 rounded-full" />
+        <div>
+          <div className="font-medium">{employee.name}</div>
+          <div className="text-sm text-gray-500">{employee.title}</div>
+        </div>
+      </div>
+    ),
+  },
+  {
+    key: 'performance',
+    label: 'Performance',
+    render: (score) => (
+      <div className="flex items-center">
+        <div className="flex-1 bg-gray-200 rounded-full h-2 mr-2">
+          <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${score}%` }} />
+        </div>
+        <span className="text-sm font-medium">{score}%</span>
+      </div>
+    ),
+  },
+];
+```
+
+**Advanced Filtering**
+
+```tsx
+// The DataGrid automatically provides appropriate filter inputs:
+// - String: text input with contains/equals/starts with/ends with
+// - Number: number input with comparison operators
+// - Date: date picker with before/after/on
+// - Boolean: dropdown with true/false options
+
+const columns = [
+  { key: 'name', label: 'Name', dataType: 'string' },
+  { key: 'salary', label: 'Salary', dataType: 'number' },
+  { key: 'startDate', label: 'Start Date', dataType: 'date' },
+  { key: 'isActive', label: 'Active', dataType: 'boolean' },
+];
+```
+
+**Real-time Data with WebSockets**
+
+```tsx
+function LiveDataGrid() {
+  const [data, setData] = useState([]);
+
+  useEffect(() => {
+    const ws = new WebSocket('ws://localhost:8080');
+    ws.onmessage = (event) => {
+      const updatedData = JSON.parse(event.data);
+      setData(updatedData);
+    };
+    return () => ws.close();
+  }, []);
+
+  return (
+    <DataGrid
+      data={data}
+      onTableRefresh={() => {
+        // Trigger server refresh
+        fetch('/api/refresh', { method: 'POST' });
+      }}
+    />
+  );
+}
+```
+
+## 🌍 Server Integration Examples
+
+**Node.js/Expresse**
+
+```tsx
+app.post('/api/users', async (req, res) => {
+  const { page, pageSize, search, sortColumn, sortDirection, filters } = JSON.parse(
+    req.body.request
+  );
+
+  let query = User.find();
+
+  // Apply search
+  if (search) {
+    query = query.where({
+      $or: [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+      ],
+    });
+  }
+
+  // Apply filters
+  filters.forEach((filter) => {
+    const operator = getMongoOperator(filter.operator);
+    query = query.where(filter.column)[operator](filter.value);
+  });
+
+  // Apply sorting
+  if (sortColumn) {
+    const sortOrder = sortDirection === 'asc' ? 1 : -1;
+    query = query.sort({ [sortColumn]: sortOrder });
+  }
+
+  const total = await User.countDocuments(query.getFilter());
+  const items = await query.skip((page - 1) * pageSize).limit(pageSize);
+
+  res.json({
+    items,
+    count: total,
+    hasMore: page * pageSize < total,
+  });
+});
+```
+
+**ASP.Net Core**
+
+```tsx
+[HttpPost("api/users")]
+public async Task<IActionResult> GetUsers([FromBody] DataTableRequest request)
+{
+    var query = _context.Users.AsQueryable();
+
+    // Apply search
+    if (!string.IsNullOrEmpty(request.Search))
+        query = query.Where(u => u.Name.Contains(request.Search) ||
+                                u.Email.Contains(request.Search));
+
+    // Apply filters
+    foreach (var filter in request.Filters)
+    {
+        query = ApplyFilter(query, filter);
+    }
+
+    // Apply sorting
+    if (!string.IsNullOrEmpty(request.SortColumn))
+        query = ApplySort(query, request.SortColumn, request.SortDirection);
+
+    var total = await query.CountAsync();
+    var items = await query
+        .Skip((request.Page - 1) * request.PageSize)
+        .Take(request.PageSize)
+        .ToListAsync();
+
+    return Ok(new {
+        items = items,
+        count = total,
+        hasMore = (request.Page * request.PageSize) < total
+    });
+}
+```
+
+**Laravel/PHP**
+
+```tsx
+Route::post('/api/users', function (Request $request) {
+    $data = json_decode($request->input('request'), true);
+
+    $query = User::query();
+
+    // Apply search
+    if (!empty($data['search'])) {
+        $query->where(function($q) use ($data) {
+            $q->where('name', 'like', "%{$data['search']}%")
+              ->orWhere('email', 'like', "%{$data['search']}%");
+        });
+    }
+
+    // Apply filters
+    foreach ($data['filters'] as $filter) {
+        $query->where($filter['column'], $filter['operator'], $filter['value']);
+    }
+
+    // Apply sorting
+    if (!empty($data['sortColumn'])) {
+        $query->orderBy($data['sortColumn'], $data['sortDirection']);
+    }
+
+    $total = $query->count();
+    $items = $query->skip(($data['page'] - 1) * $data['pageSize'])
+                   ->take($data['pageSize'])
+                   ->get();
+
+    return response()->json([
+        'items' => $items,
+        'count' => $total,
+        'hasMore' => ($data['page'] * $data['pageSize']) < $total
+    ]);
+});
+```
+
+## 🧪 Testing
+
+```bash
+# Run test suite
+npm test
+
+# Watch mode for development
+npm run test:watch
+
+# Coverage report
+npm run test:coverage
+```
+
+**Testing with Jest & React Testing Library**
+
+```tsx
+import { render, screen, fireEvent } from '@testing-library/react';
+import { DataGrid } from '@reactorui/datagrid';
+
+test('handles user interactions', () => {
+  const onSelectionChange = jest.fn();
+  const testData = [{ id: 1, name: 'John', email: 'john@test.com' }];
+
+  render(<DataGrid data={testData} onSelectionChange={onSelectionChange} />);
+
+  // Test search
+  fireEvent.change(screen.getByPlaceholderText('Search...'), {
+    target: { value: 'John' },
+  });
+
+  // Test selection
+  fireEvent.click(screen.getAllByRole('checkbox')[1]);
+
+  expect(onSelectionChange).toHaveBeenCalledWith([testData[0]]);
+});
+```
 
 ## 📚 Examples
 
 Check out the examples/ directory for complete working examples:
-examples/basic/ - Basic usage with static data
-examples/advanced/ - Advanced features with custom rendering
-examples/server-side/ - Server-side data integration
 
-🤝 Contributing
+examples/basic/ - Simple usage with auto-detected columns
+examples/advanced/ - Custom columns, renderers, and styling
+examples/events/ - Comprehensive event handling demonstration
+
+## 🚀 Performance Tips
+
+Use server-side pagination for datasets > 1000 records
+Implement custom renderers efficiently with React.memo
+Debounce search for better UX with large datasets
+Use specific column keys instead of auto-detection for better performance
+
+```tsx
+const StatusBadge = React.memo(({ status }: { status: string }) => (
+  <span className={`badge ${status === 'active' ? 'bg-green' : 'bg-red'}`}>{status}</span>
+));
+
+// Debounced search
+const [debouncedSearch] = useDebounce(searchTerm, 300);
+```
+
+## 🔧 Development
+
+```bash
+# Install dependencies
+npm install
+
+# Run tests
+npm test
+
+# Build library
+npm run build
+
+# Type checking
+npm run typecheck
+
+# Linting
+npm run lint
+
+# Format code
+npm run format
+```
+
+## 🤝 Contributing
+
 We welcome contributions! Please see our Contributing Guide for details.
+
+Fork the repository
+Create your feature branch (git checkout -b feature/amazing-feature)
+Write tests for your changes
+Commit your changes (git commit -m 'Add amazing feature')
+Push to the branch (git push origin feature/amazing-feature)
+Open a Pull Request
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+Made with ❤️ by ReactorUI

@@ -35,6 +35,18 @@ export interface SortConfig {
   direction: 'asc' | 'desc';
 }
 
+// Pagination info
+export interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  pageSize: number;
+  totalRecords: number;
+  start: number;
+  end: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+}
+
 // Server request/response
 export interface ServerRequest {
   page: number;
@@ -62,35 +74,65 @@ export interface HttpConfig {
   timeout?: number;
 }
 
-// Component props
-export interface DataGridProps<T = BaseRowData> extends HTMLAttributes<HTMLDivElement> {
+// Event callback types (renamed to avoid HTML conflicts)
+export type OnDataLoadCallback<T = BaseRowData> = (data: ServerResponse<T>) => void;
+export type OnDataErrorCallback = (error: Error, context: string) => void;
+export type OnLoadingStateChangeCallback = (loading: boolean, context: string) => void;
+export type OnPageChangeCallback = (page: number, paginationInfo: PaginationInfo) => void;
+export type OnPageSizeChangeCallback = (pageSize: number, paginationInfo: PaginationInfo) => void;
+export type OnSortChangeCallback = (sortConfig: SortConfig) => void;
+export type OnFilterChangeCallback = (filters: ActiveFilter[]) => void;
+export type OnSearchChangeCallback = (searchTerm: string) => void;
+export type OnTableRowClickCallback<T = BaseRowData> = (row: T, event: React.MouseEvent) => void;
+export type OnTableRowDoubleClickCallback<T = BaseRowData> = (row: T, event: React.MouseEvent) => boolean | void;
+export type OnRowSelectCallback<T = BaseRowData> = (row: T, isSelected: boolean) => void;
+export type OnSelectionChangeCallback<T = BaseRowData> = (selectedRows: T[]) => void;
+export type OnTableRowHoverCallback<T = BaseRowData> = (row: T | null, event: React.MouseEvent) => void;
+export type OnCellClickCallback<T = BaseRowData> = (value: any, row: T, column: Column<T>, event: React.MouseEvent) => void;
+export type OnTableRefreshCallback = () => void;
+
+// Component props - use Omit to exclude conflicting HTML attributes
+export interface DataGridProps<T = BaseRowData> extends Omit<HTMLAttributes<HTMLDivElement>, 'onError'> {
   // Data
   data?: T[];
   endpoint?: string;
   columns?: Column<T>[];
-
+  
   // Features
   enableSearch?: boolean;
   enableSorting?: boolean;
   enableFilters?: boolean;
   enableSelection?: boolean;
-
+  
   // Pagination
   pageSize?: number;
   serverPageSize?: number;
   pageSizeOptions?: number[];
-
+  
   // HTTP
   httpConfig?: HttpConfig;
-
+  
   // Styling
   className?: string;
   variant?: 'default' | 'striped' | 'bordered';
   size?: 'sm' | 'md' | 'lg';
-
-  // Callbacks
-  onRowSelect?: (row: T, selected: boolean) => void;
-  onSelectionChange?: (selectedRows: T[]) => void;
-  onRowDoubleClick?: (row: T) => void;
-  onDataLoad?: (data: ServerResponse<T>) => void;
+  
+  // Data & State Events (renamed to avoid conflicts)
+  onDataLoad?: OnDataLoadCallback<T>;
+  onDataError?: OnDataErrorCallback;
+  onLoadingStateChange?: OnLoadingStateChangeCallback;
+  onPageChange?: OnPageChangeCallback;
+  onPageSizeChange?: OnPageSizeChangeCallback;
+  onSortChange?: OnSortChangeCallback;
+  onFilterChange?: OnFilterChangeCallback;
+  onSearchChange?: OnSearchChangeCallback;
+  onTableRefresh?: OnTableRefreshCallback;
+  
+  // Row & Cell Events (renamed to avoid conflicts)
+  onTableRowClick?: OnTableRowClickCallback<T>;
+  onTableRowDoubleClick?: OnTableRowDoubleClickCallback<T>;
+  onRowSelect?: OnRowSelectCallback<T>;
+  onSelectionChange?: OnSelectionChangeCallback<T>;
+  onTableRowHover?: OnTableRowHoverCallback<T>;
+  onCellClick?: OnCellClickCallback<T>;
 }

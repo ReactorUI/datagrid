@@ -6,7 +6,10 @@ interface TableBodyProps<T> {
   data: T[];
   selectedRows: Set<string>;
   onSelectRow?: (rowId: string, selected: boolean) => void;
-  onRowDoubleClick?: (row: T) => void;
+  onRowClick?: (row: T, event: React.MouseEvent) => void;
+  onRowDoubleClick?: (row: T, event: React.MouseEvent) => void;
+  onRowHover?: (row: T | null, event: React.MouseEvent) => void;
+  onCellClick?: (value: any, row: T, column: Column<T>, event: React.MouseEvent) => void;
   enableSelection: boolean;
   loading: boolean;
   emptyMessage?: string;
@@ -17,14 +20,17 @@ export const TableBody = <T extends { id?: string | number }>({
   data,
   selectedRows,
   onSelectRow,
+  onRowClick,
   onRowDoubleClick,
+  onRowHover,
+  onCellClick,
   enableSelection,
   loading,
   emptyMessage = 'No data available',
 }: TableBodyProps<T>) => {
   const renderCell = (row: T, column: Column<T>) => {
     const value = (row as any)[column.key];
-
+    
     if (column.render) {
       return column.render(value, row, 0);
     }
@@ -34,6 +40,33 @@ export const TableBody = <T extends { id?: string | number }>({
 
   const getRowId = (row: T): string => {
     return String(row.id || Math.random());
+  };
+
+  const handleRowClick = (row: T, event: React.MouseEvent) => {
+    // Don't trigger if clicking on interactive elements
+    if (
+      event.target instanceof HTMLInputElement ||
+      event.target instanceof HTMLButtonElement ||
+      (event.target as HTMLElement).closest('button, input, a')
+    ) {
+      return;
+    }
+
+    onRowClick?.(row, event);
+    
+    // Also handle selection if enabled
+    if (enableSelection && onSelectRow) {
+      const rowId = getRowId(row);
+      const isSelected = selectedRows.has(rowId);
+      onSelectRow(rowId, !isSelected);
+    }
+  };
+
+  const handleCellClick = (row: T, column: Column<T>, event: React.MouseEvent) => {
+    if (onCellClick) {
+      const value = (row as any)[column.key];
+      onCellClick(value, row, column, event);
+    }
   };
 
   if (loading && data.length === 0) {
@@ -84,18 +117,10 @@ export const TableBody = <T extends { id?: string | number }>({
             className={`transition-colors duration-150 cursor-pointer ${
               isSelected ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'
             }`}
-            onDoubleClick={() => onRowDoubleClick?.(row)}
-            onClick={(e) => {
-              // Don't trigger row selection if clicking on interactive elements
-              if (
-                e.target instanceof HTMLInputElement ||
-                e.target instanceof HTMLButtonElement ||
-                (e.target as HTMLElement).closest('button, input, a')
-              ) {
-                return;
-              }
-              onSelectRow?.(rowId, !isSelected);
-            }}
+            onClick={(e) => handleRowClick(row, e)}
+            onDoubleClick={(e) => onRowDoubleClick?.(row, e)}
+            onMouseEnter={(e) => onRowHover?.(row, e)}
+            onMouseLeave={(e) => onRowHover?.(null, e)}
           >
             {enableSelection && (
               <td className="px-4 py-3">
@@ -119,6 +144,10 @@ export const TableBody = <T extends { id?: string | number }>({
                   minWidth: column.minWidth,
                   maxWidth: column.maxWidth,
                   textAlign: column.align || 'left',
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCellClick(row, column, e);
                 }}
               >
                 {renderCell(row, column)}

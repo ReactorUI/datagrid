@@ -27,6 +27,16 @@ export const Pagination: React.FC<PaginationProps> = ({
   hasNext,
   hasPrevious,
 }) => {
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      onPageChange(page);
+    }
+  };
+
+  const handlePageSizeChange = (newSize: number) => {
+    onPageSizeChange(newSize);
+  };
+
   return (
     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-4 py-3 bg-white border-t border-gray-200">
       {/* Records info */}
@@ -41,7 +51,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           <span className="text-sm text-gray-700">Show:</span>
           <select
             value={pageSize}
-            onChange={(e) => onPageSizeChange(parseInt(e.target.value))}
+            onChange={(e) => handlePageSizeChange(parseInt(e.target.value))}
             className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             {pageSizeOptions.map((size) => (
@@ -56,7 +66,7 @@ export const Pagination: React.FC<PaginationProps> = ({
         {/* Navigation */}
         <div className="flex items-center gap-2">
           <button
-            onClick={() => onPageChange(currentPage - 1)}
+            onClick={() => handlePageChange(currentPage - 1)}
             disabled={!hasPrevious}
             className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -68,7 +78,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           </span>
 
           <button
-            onClick={() => onPageChange(currentPage + 1)}
+            onClick={() => handlePageChange(currentPage + 1)}
             disabled={!hasNext}
             className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >

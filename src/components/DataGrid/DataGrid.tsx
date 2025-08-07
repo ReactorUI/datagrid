@@ -22,15 +22,29 @@ export const DataGrid = <T extends { id?: string | number } = any>({
   variant = 'default',
   size = 'md',
   className = '',
+  
+  // Event callbacks (renamed to avoid HTML conflicts)
+  onDataLoad,
+  onDataError,
+  onLoadingStateChange,
+  onPageChange,
+  onPageSizeChange,
+  onSortChange,
+  onFilterChange,
+  onSearchChange,
+  onTableRefresh,
+  onTableRowClick,
+  onTableRowDoubleClick,
   onRowSelect,
   onSelectionChange,
-  onRowDoubleClick,
-  onDataLoad,
+  onTableRowHover,
+  onCellClick,
+  
   ...rest
 }: DataGridProps<T>) => {
   const theme = getTheme(variant);
 
-  // Use the data grid hook
+  // Use the data grid hook with all callbacks
   const {
     data: sourceData,
     processedData,
@@ -54,6 +68,7 @@ export const DataGrid = <T extends { id?: string | number } = any>({
     selectAll,
     paginationInfo,
     selectedData,
+    refresh,
   } = useDataGrid({
     data,
     endpoint,
@@ -61,6 +76,13 @@ export const DataGrid = <T extends { id?: string | number } = any>({
     pageSize,
     serverPageSize,
     onDataLoad,
+    onDataError,
+    onLoadingStateChange,
+    onPageChange,
+    onPageSizeChange,
+    onSortChange,
+    onFilterChange,
+    onSearchChange,
   });
 
   // Auto-detect columns if not provided
@@ -69,7 +91,7 @@ export const DataGrid = <T extends { id?: string | number } = any>({
 
     if (sourceData.length > 0) {
       const firstRow = sourceData[0];
-      return Object.keys(firstRow).map((key) => ({
+      return Object.keys(firstRow).map(key => ({
         key,
         label: key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'),
         sortable: true,
@@ -88,15 +110,21 @@ export const DataGrid = <T extends { id?: string | number } = any>({
     }
   }, [selectedData, onSelectionChange]);
 
-  // Handle row selection
+  // Handle row selection with callback
   const handleRowSelect = (rowId: string, selected: boolean) => {
     selectRow(rowId, selected);
     if (onRowSelect) {
-      const row = sourceData.find((r) => String(r.id) === rowId);
+      const row = sourceData.find(r => String(r.id) === rowId);
       if (row) {
         onRowSelect(row, selected);
       }
     }
+  };
+
+  // Handle refresh
+  const handleRefresh = () => {
+    refresh();
+    onTableRefresh?.();
   };
 
   if (error) {
@@ -104,7 +132,13 @@ export const DataGrid = <T extends { id?: string | number } = any>({
       <div className={`${theme.container} ${className}`} {...rest}>
         <div className="px-4 py-8 text-center">
           <div className="text-red-600 mb-2">Error loading data</div>
-          <div className="text-sm text-gray-600">{error}</div>
+          <div className="text-sm text-gray-600 mb-4">{error}</div>
+          <button 
+            onClick={handleRefresh}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     );
@@ -125,7 +159,7 @@ export const DataGrid = <T extends { id?: string | number } = any>({
           />
         )}
 
-        {/* Search and Page Size */}
+        {/* Search and Refresh */}
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
           {enableSearch && (
             <div className="w-full sm:w-64">
@@ -137,6 +171,14 @@ export const DataGrid = <T extends { id?: string | number } = any>({
               />
             </div>
           )}
+          
+          <button
+            onClick={handleRefresh}
+            disabled={loading}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:opacity-50"
+          >
+            {loading ? 'Loading...' : 'Refresh'}
+          </button>
         </div>
       </div>
 
@@ -157,7 +199,10 @@ export const DataGrid = <T extends { id?: string | number } = any>({
             data={paginatedData}
             selectedRows={selectedRows}
             onSelectRow={enableSelection ? handleRowSelect : undefined}
-            onRowDoubleClick={onRowDoubleClick}
+            onRowClick={onTableRowClick}
+            onRowDoubleClick={onTableRowDoubleClick}
+            onRowHover={onTableRowHover}
+            onCellClick={onCellClick}
             enableSelection={enableSelection}
             loading={loading}
           />
@@ -187,7 +232,7 @@ function inferDataType(value: any): 'string' | 'number' | 'boolean' | 'date' | '
   if (value == null) return 'string';
   if (typeof value === 'boolean') return 'boolean';
   if (typeof value === 'number') return 'number';
-
+  
   if (typeof value === 'string') {
     // Try to detect dates
     const dateValue = new Date(value);
@@ -195,6 +240,6 @@ function inferDataType(value: any): 'string' | 'number' | 'boolean' | 'date' | '
       return value.includes('T') || value.includes(' ') ? 'datetime' : 'date';
     }
   }
-
+  
   return 'string';
 }
