@@ -354,8 +354,6 @@ interface ServerResponse<T> {
 | `onTableRowHover`       | `(row: T \| null, event: MouseEvent) => void`                        | Called when hovering over rows               |
 | `onCellClick`           | `(value: any, row: T, column: Column<T>, event: MouseEvent) => void` | Called when clicking individual cells        |
 
-|
-
 ## 📖 Complete API Reference
 
 **DataGrid Props**
