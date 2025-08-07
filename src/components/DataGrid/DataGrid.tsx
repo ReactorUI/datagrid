@@ -211,7 +211,7 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
                   disabled={loading}
                   className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors duration-150"
                 >
-                  {loading ? 'Refreshing...' : 'Refresh'}
+                  {loading ? 'Loading...' : 'Refresh'}
                 </button>
               </div>
             )}
@@ -262,7 +262,11 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
                     ? 'Select rows to delete'
                     : `Delete ${selectedRows.size} selected item${selectedRows.size === 1 ? '' : 's'}`
                 }
-                className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded hover:bg-transparent hover:text-gray-900 dark:hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:text-gray-400 dark:disabled:text-gray-500 disabled:cursor-not-allowed transition-colors duration-150 flex items-center gap-1"
+                className={`px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 transition-colors duration-150 flex items-center gap-1 ${
+                  selectedRows.size === 0
+                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 cursor-pointer'
+                }`}
               >
                 <svg
                   className="w-4 h-4"
