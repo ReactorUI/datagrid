@@ -332,7 +332,7 @@ interface ServerResponse<T> {
 }
 ```
 
-### Event Callbacks
+## Event Callbacks
 
 | **Event**               | **Signature**                                                        | **Description**                              |
 | ----------------------- | -------------------------------------------------------------------- | -------------------------------------------- |
@@ -345,7 +345,7 @@ interface ServerResponse<T> {
 | `onSortChange`          | `(sortConfig: SortConfig) => void`                                   | Called when sorting changes                  |
 | `onFilterChange`        | `(filters: ActiveFilter[]) => void`                                  | Called when filters change                   |
 | `onSearchChange`        | `(searchTerm: string) => void`                                       | Called when search term changes              |
-| `onTableRefresh`        | `() => void`                                                         | Called when refresh is triggered             |
+| `onTableRefresh`        | `() => void`                                                         | Called when refresh button is triggered      |
 | **Row & Cell Events**   |                                                                      |                                              |
 | `onTableRowClick`       | `(row: T, event: MouseEvent) => void`                                | Called on single row click                   |
 | `onTableRowDoubleClick` | `(row: T, event: MouseEvent) => boolean \| void`                     | Called on row double-click                   |
@@ -353,8 +353,6 @@ interface ServerResponse<T> {
 | `onSelectionChange`     | `(selectedRows: T[]) => void`                                        | Called when overall selection changes        |
 | `onTableRowHover`       | `(row: T \| null, event: MouseEvent) => void`                        | Called when hovering over rows               |
 | `onCellClick`           | `(value: any, row: T, column: Column<T>, event: MouseEvent) => void` | Called when clicking individual cells        |
-
-## 📖 Complete API Reference
 
 **DataGrid Props**
 
@@ -369,6 +367,7 @@ interface ServerResponse<T> {
 | `enableSorting`        | `boolean`                              | `true`             | Enable column sorting                    |
 | `enableFilters`        | `boolean`                              | `true`             | Enable advanced filtering                |
 | `enableSelection`      | `boolean`                              | `true`             | Enable row selection with checkboxes     |
+| `enableRefresh`        | `boolean`                              | `true`             | Show/hide the refresh button             |
 | **Pagination**         |                                        |                    |                                          |
 | `pageSize`             | `number`                               | `10`               | Client-side pagination size              |
 | `serverPageSize`       | `number`                               | `100`              | Server request batch size                |
@@ -379,8 +378,6 @@ interface ServerResponse<T> {
 | `className`            | `string`                               | `''`               | Additional CSS classes                   |
 | **HTTP Configuration** |                                        |                    |                                          |
 | `httpConfig`           | `HttpConfig`                           | –                  | Authentication and request configuration |
-| **Refresh Controls**   |                                        |                    |                                          |
-| `showRefreshButton`    | `boolean`                              | `true`             | Show/hide the refresh button             |
 
 ## 🎨 Theming & Styling
 

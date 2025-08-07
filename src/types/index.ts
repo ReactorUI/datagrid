@@ -124,7 +124,7 @@ export interface DataGridProps<T = BaseRowData>
   pageSizeOptions?: number[];
 
   // UI Control
-  showRefreshButton?: boolean;
+  enableRefresh?: boolean;
 
   // HTTP
   httpConfig?: HttpConfig;

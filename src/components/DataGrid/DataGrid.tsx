@@ -21,7 +21,7 @@ export const DataGrid = <T extends { id?: string | number } = any>({
   variant = 'default',
   size = 'md',
   className = '',
-  showRefreshButton = true,
+  enableRefresh = true,
 
   // Event callbacks
   onDataLoad,
@@ -160,7 +160,7 @@ export const DataGrid = <T extends { id?: string | number } = any>({
             </div>
 
             {/* Refresh button on the right */}
-            {showRefreshButton && (
+            {enableRefresh && (
               <div className="flex-shrink-0">
                 <button
                   onClick={handleRefresh}
