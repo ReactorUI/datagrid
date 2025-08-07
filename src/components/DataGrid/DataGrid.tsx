@@ -188,7 +188,7 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
 
   return (
     <div className={`${theme.container} ${className}`} {...rest}>
-      {/* Row 1: Filters + Refresh Button */}
+      {/* Row 1: Filters */}
       {enableFilters && (
         <div className="p-4 pb-2">
           <div className="flex justify-between items-start gap-4">
@@ -202,24 +202,11 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
                 onClearFilters={clearFilters}
               />
             </div>
-
-            {/* Refresh button on the right */}
-            {enableRefresh && (
-              <div className="flex-shrink-0">
-                <button
-                  onClick={handleRefresh}
-                  disabled={loading}
-                  className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors duration-150"
-                >
-                  {loading ? 'Loading...' : 'Refresh'}
-                </button>
-              </div>
-            )}
           </div>
         </div>
       )}
 
-      {/* Row 2: Page Size Selector + Search Input + Delete Button */}
+      {/* Row 2: Page Size Selector + Search Input + Refresh + Delete Button */}
       <div className="px-4 pb-4">
         <div className="flex justify-between items-center gap-4">
           {/* Show X entries on the left */}
@@ -239,7 +226,7 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
             <span className="text-sm text-gray-700 dark:text-gray-300">entries</span>
           </div>
 
-          {/* Search input and Delete button on the right */}
+          {/* Search input, Refresh and Delete button on the right */}
           <div className="flex items-center gap-2 flex-shrink-0">
             {enableSearch && (
               <div className="w-64">
@@ -251,6 +238,30 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
                   className={theme.searchInput}
                 />
               </div>
+            )}
+
+            {enableRefresh && (
+              <button
+                onClick={handleRefresh}
+                disabled={loading}
+                title={loading ? 'Loading...' : 'Refresh data'}
+                className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors duration-150 flex items-center justify-center"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+              </button>
             )}
 
             {enableDelete && enableSelection && (

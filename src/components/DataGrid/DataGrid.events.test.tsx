@@ -70,9 +70,15 @@ describe('DataGrid Events', () => {
 
   it('calls onTableRefresh when refresh button is clicked', async () => {
     const onTableRefresh = jest.fn();
-    render(<DataGrid data={testData} enableRefresh={true} onTableRefresh={onTableRefresh} />);
+    render(
+      <DataGrid
+        data={testData}
+        enableRefresh={true} // ✅ FIXED: Explicitly enable refresh
+        onTableRefresh={onTableRefresh}
+      />
+    );
 
-    const refreshButton = screen.getByText('Refresh');
+    const refreshButton = screen.getByTitle(/refresh data/i);
     fireEvent.click(refreshButton);
 
     await waitFor(() => {
@@ -104,12 +110,12 @@ describe('DataGrid Events', () => {
 
   it('does not show refresh button by default', () => {
     render(<DataGrid data={testData} />);
-    expect(screen.queryByText('Refresh')).not.toBeInTheDocument();
+    expect(screen.queryByTitle(/refresh data/i)).not.toBeInTheDocument();
   });
 
   it('shows refresh button when enableRefresh is true', () => {
     render(<DataGrid data={testData} enableRefresh={true} />);
-    expect(screen.getByText('Refresh')).toBeInTheDocument();
+    expect(screen.getByTitle(/refresh data/i)).toBeInTheDocument();
   });
 
   // Delete functionality tests
