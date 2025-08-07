@@ -1,5 +1,6 @@
 import React from 'react';
 import { Column, SortConfig } from '../../types';
+import { Theme } from '../../themes';
 
 interface TableHeaderProps<T> {
   columns: Column<T>[];
@@ -9,6 +10,7 @@ interface TableHeaderProps<T> {
   selectedCount: number;
   totalCount: number;
   onSelectAll?: (selected: boolean) => void;
+  theme: Theme;
 }
 
 export const TableHeader = <T,>({
@@ -19,37 +21,58 @@ export const TableHeader = <T,>({
   selectedCount,
   totalCount,
   onSelectAll,
+  theme,
 }: TableHeaderProps<T>) => {
   const getSortIcon = (columnKey: string) => {
     if (sortConfig.column !== columnKey) {
       return (
-        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+        <svg
+          className="w-4 h-4 text-gray-400 dark:text-gray-500"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
+          />
         </svg>
       );
     }
 
     if (sortConfig.direction === 'asc') {
       return (
-        <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg
+          className="w-4 h-4 text-blue-500 dark:text-blue-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
         </svg>
       );
     }
 
     return (
-      <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg
+        className="w-4 h-4 text-blue-500 dark:text-blue-400"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
       </svg>
     );
   };
 
   return (
-    <thead className="bg-gray-50 border-b border-gray-200">
+    <thead className={theme.header}>
       <tr>
         {enableSelection && (
-          <th 
-            className="w-12 px-4 py-3 text-left"
+          <th
+            className={`w-12 ${theme.headerCell}`}
             role="columnheader"
             aria-label="Select all rows"
           >
@@ -62,7 +85,7 @@ export const TableHeader = <T,>({
                 }
               }}
               onChange={(e) => onSelectAll?.(e.target.checked)}
-              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              className="w-4 h-4 text-blue-600 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 dark:focus:ring-blue-400"
               aria-label="Select all rows"
             />
           </th>
@@ -71,8 +94,10 @@ export const TableHeader = <T,>({
           <th
             key={String(column.key)}
             role="columnheader"
-            className={`px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${
-              column.sortable && onSort ? 'cursor-pointer hover:bg-gray-100 select-none' : ''
+            className={`${theme.headerCell} ${
+              column.sortable && onSort
+                ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 select-none'
+                : ''
             }`}
             onClick={() => column.sortable && onSort && onSort(String(column.key))}
             style={{
@@ -82,8 +107,10 @@ export const TableHeader = <T,>({
               textAlign: column.align || 'left',
             }}
             aria-sort={
-              sortConfig.column === String(column.key) 
-                ? sortConfig.direction === 'asc' ? 'ascending' : 'descending'
+              sortConfig.column === String(column.key)
+                ? sortConfig.direction === 'asc'
+                  ? 'ascending'
+                  : 'descending'
                 : 'none'
             }
             aria-label={`Sort by ${column.label}`}

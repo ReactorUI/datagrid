@@ -4,7 +4,6 @@ import { useDataGrid } from '../../hooks';
 import { SearchInput } from '../Search';
 import { FilterControls } from '../Filter';
 import { TableHeader, TableBody } from '../Table';
-import { Pagination } from '../Pagination';
 import { getTheme } from '../../themes';
 
 export const DataGrid = <T extends { id?: string | number } = any>({
@@ -19,12 +18,12 @@ export const DataGrid = <T extends { id?: string | number } = any>({
   serverPageSize = 100,
   pageSizeOptions = [5, 10, 25, 50, 100],
   httpConfig,
-  showRefreshButton = true, // Default to true for backward compatibility
   variant = 'default',
   size = 'md',
   className = '',
+  showRefreshButton = true,
 
-  // Event callbacks (renamed to avoid HTML conflicts)
+  // Event callbacks
   onDataLoad,
   onDataError,
   onLoadingStateChange,
@@ -45,7 +44,7 @@ export const DataGrid = <T extends { id?: string | number } = any>({
 }: DataGridProps<T>) => {
   const theme = getTheme(variant);
 
-  // Use the data grid hook with all callbacks
+  // Use the data grid hook
   const {
     data: sourceData,
     processedData,
@@ -60,8 +59,9 @@ export const DataGrid = <T extends { id?: string | number } = any>({
     currentPageSize,
     setSearchTerm,
     setSort,
-    setCurrentPage,
     setCurrentPageSize,
+    navigateNext,
+    navigatePrevious,
     addFilter,
     removeFilter,
     clearFilters,
@@ -132,12 +132,9 @@ export const DataGrid = <T extends { id?: string | number } = any>({
     return (
       <div className={`${theme.container} ${className}`} {...rest}>
         <div className="px-4 py-8 text-center">
-          <div className="text-red-600 mb-2">Error loading data</div>
-          <div className="text-sm text-gray-600 mb-4">{error}</div>
-          <button
-            onClick={handleRefresh}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
+          <div className="text-red-600 dark:text-red-400 mb-2">Error loading data</div>
+          <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">{error}</div>
+          <button onClick={handleRefresh} className={theme.button}>
             Try Again
           </button>
         </div>
@@ -147,41 +144,68 @@ export const DataGrid = <T extends { id?: string | number } = any>({
 
   return (
     <div className={`${theme.container} ${className}`} {...rest}>
-      {/* Controls */}
-      <div className="p-4 space-y-4">
-        {/* Filters */}
-        {enableFilters && (
-          <FilterControls
-            columns={columns}
-            activeFilters={activeFilters}
-            onAddFilter={addFilter}
-            onRemoveFilter={removeFilter}
-            onClearFilters={clearFilters}
-          />
-        )}
+      {/* Row 1: Filters + Refresh Button */}
+      {enableFilters && (
+        <div className="p-4 pb-2">
+          <div className="flex justify-between items-start gap-4">
+            {/* Filters on the left */}
+            <div className="flex-1">
+              <FilterControls
+                columns={columns}
+                activeFilters={activeFilters}
+                onAddFilter={addFilter}
+                onRemoveFilter={removeFilter}
+                onClearFilters={clearFilters}
+              />
+            </div>
 
-        {/* Search and Refresh */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+            {/* Refresh button on the right */}
+            {showRefreshButton && (
+              <div className="flex-shrink-0">
+                <button
+                  onClick={handleRefresh}
+                  disabled={loading}
+                  className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors duration-150"
+                >
+                  {loading ? 'Loading...' : 'Refresh'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Row 2: Page Size Selector + Search Input */}
+      <div className="px-4 pb-4">
+        <div className="flex justify-between items-center gap-4">
+          {/* Show X entries on the left */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className="text-sm text-gray-700 dark:text-gray-300">Show</span>
+            <select
+              value={currentPageSize}
+              onChange={(e) => setCurrentPageSize(parseInt(e.target.value))}
+              className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+            >
+              {pageSizeOptions.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+            <span className="text-sm text-gray-700 dark:text-gray-300">entries</span>
+          </div>
+
+          {/* Search input on the right (reduced width) */}
           {enableSearch && (
-            <div className="w-full sm:w-64">
+            <div className="w-64 flex-shrink-0">
               <SearchInput
                 value={searchTerm}
                 onChange={setSearchTerm}
                 placeholder="Search..."
                 disabled={loading}
+                className={theme.searchInput}
               />
             </div>
-          )}
-
-          {/* Conditional Refresh Button */}
-          {showRefreshButton && (
-            <button
-              onClick={handleRefresh}
-              disabled={loading}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:opacity-50"
-            >
-              {loading ? 'Loading...' : 'Refresh'}
-            </button>
           )}
         </div>
       </div>
@@ -197,6 +221,7 @@ export const DataGrid = <T extends { id?: string | number } = any>({
             selectedCount={selectedRows.size}
             totalCount={paginatedData.length}
             onSelectAll={enableSelection ? selectAll : undefined}
+            theme={theme}
           />
           <TableBody
             columns={columns}
@@ -209,24 +234,42 @@ export const DataGrid = <T extends { id?: string | number } = any>({
             onCellClick={onCellClick}
             enableSelection={enableSelection}
             loading={loading}
+            theme={theme}
           />
         </table>
       </div>
 
-      {/* Pagination */}
-      <Pagination
-        currentPage={currentPage}
-        totalPages={paginationInfo.totalPages}
-        pageSize={currentPageSize}
-        pageSizeOptions={pageSizeOptions}
-        totalRecords={processedData.length}
-        displayStart={paginationInfo.start}
-        displayEnd={paginationInfo.end}
-        onPageChange={setCurrentPage}
-        onPageSizeChange={setCurrentPageSize}
-        hasNext={paginationInfo.hasNext}
-        hasPrevious={paginationInfo.hasPrevious}
-      />
+      {/* Bottom Row: Records Info + Navigation */}
+      <div className={theme.pagination}>
+        {/* Records info on the left */}
+        <div className="text-sm text-gray-700 dark:text-gray-300 flex-shrink-0">
+          Showing {paginationInfo.start}-{paginationInfo.end} of{' '}
+          {paginationInfo.totalRecords.toLocaleString()} records
+        </div>
+
+        {/* Navigation controls on the right */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={navigatePrevious}
+            disabled={!paginationInfo.hasPrevious}
+            className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
+          >
+            Previous
+          </button>
+
+          <span className="text-sm text-gray-700 dark:text-gray-300 px-2">
+            Page {currentPage} {paginationInfo.totalPages > 0 && `of ${paginationInfo.totalPages}`}
+          </span>
+
+          <button
+            onClick={navigateNext}
+            disabled={!paginationInfo.hasNext}
+            className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
+          >
+            Next
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

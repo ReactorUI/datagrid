@@ -118,13 +118,13 @@ export interface DataGridProps<T = BaseRowData>
   enableFilters?: boolean;
   enableSelection?: boolean;
 
-  // UI Control
-  showRefreshButton?: boolean;
-
   // Pagination
   pageSize?: number;
   serverPageSize?: number;
   pageSizeOptions?: number[];
+
+  // UI Control
+  showRefreshButton?: boolean;
 
   // HTTP
   httpConfig?: HttpConfig;

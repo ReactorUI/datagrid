@@ -1,6 +1,6 @@
 {
   "name": "@reactorui/datagrid",
-  "version": "1.0.1",
+  "version": "1.0.6",
   "description": "High-performance React data grid with TypeScript support, server-side integration, and continuation token pagination",
   "main": "dist/index.js",
   "module": "dist/index.js",

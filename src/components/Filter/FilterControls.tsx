@@ -58,7 +58,7 @@ export const FilterControls = <T,>({
           type="text"
           disabled
           placeholder="Select column first"
-          className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 cursor-not-allowed"
+          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
         />
       );
     }
@@ -68,7 +68,7 @@ export const FilterControls = <T,>({
       onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
         setFilterValue(e.target.value),
       className:
-        'px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500',
+        'px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400',
     };
 
     switch (selectedColumn.dataType) {
@@ -100,6 +100,15 @@ export const FilterControls = <T,>({
       value: filterValue.trim(),
       dataType: selectedColumn?.dataType || 'string',
     });
+
+    // DON'T reset the form - keep the values so user can modify and reapply
+  };
+
+  const handleClearfilter = () => {
+    setFilterColumn('');
+    setFilterOperator('eq');
+    setFilterValue('');
+    onClearFilters();
   };
 
   const canApplyFilter = filterColumn && filterValue.trim();
@@ -110,7 +119,9 @@ export const FilterControls = <T,>({
       <div className="flex flex-wrap gap-4 items-end">
         {/* Column Selector */}
         <div className="min-w-40">
-          <label className="block text-xs font-medium text-gray-700 mb-1">Column</label>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Column
+          </label>
           <select
             value={filterColumn}
             onChange={(e) => {
@@ -118,7 +129,7 @@ export const FilterControls = <T,>({
               setFilterOperator('eq');
               setFilterValue('');
             }}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
           >
             <option value="">Select Column</option>
             {filterableColumns.map((col) => (
@@ -131,12 +142,14 @@ export const FilterControls = <T,>({
 
         {/* Operator Selector */}
         <div className="min-w-32">
-          <label className="block text-xs font-medium text-gray-700 mb-1">Operator</label>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Operator
+          </label>
           <select
             value={filterOperator}
             onChange={(e) => setFilterOperator(e.target.value)}
             disabled={!filterColumn}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400 disabled:cursor-not-allowed"
           >
             {getOperatorOptions().map((op) => (
               <option key={op.value} value={op.value}>
@@ -148,7 +161,9 @@ export const FilterControls = <T,>({
 
         {/* Value Input */}
         <div className="min-w-40">
-          <label className="block text-xs font-medium text-gray-700 mb-1">Value</label>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Value
+          </label>
           {renderFilterInput()}
         </div>
 
@@ -157,13 +172,13 @@ export const FilterControls = <T,>({
           <button
             onClick={handleApplyFilter}
             disabled={!canApplyFilter}
-            className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-300 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white text-sm rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:text-gray-500 dark:disabled:text-gray-400 disabled:cursor-not-allowed transition-colors duration-150"
           >
             Apply Filter
           </button>
           <button
-            onClick={onClearFilters}
-            className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
+            onClick={handleClearfilter}
+            className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 transition-colors duration-150"
           >
             Clear All
           </button>
@@ -173,16 +188,16 @@ export const FilterControls = <T,>({
       {/* Active Filters */}
       {activeFilters.length > 0 && (
         <div className="flex flex-wrap gap-2 items-center">
-          <span className="text-sm text-gray-600">Active filters:</span>
+          <span className="text-sm text-gray-600 dark:text-gray-400">Active filters:</span>
           {activeFilters.map((filter, index) => (
             <span
               key={index}
-              className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+              className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-full text-sm"
             >
               {filter.label}
               <button
                 onClick={() => onRemoveFilter(index)}
-                className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
+                className="ml-1 text-blue-600 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-100 focus:outline-none transition-colors duration-150"
               >
                 ×
               </button>

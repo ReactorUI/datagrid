@@ -1,5 +1,6 @@
 import React from 'react';
 import { Column } from '../../types';
+import { Theme } from '../../themes';
 
 interface TableBodyProps<T> {
   columns: Column<T>[];
@@ -13,6 +14,7 @@ interface TableBodyProps<T> {
   enableSelection: boolean;
   loading: boolean;
   emptyMessage?: string;
+  theme: Theme;
 }
 
 export const TableBody = <T extends { id?: string | number }>({
@@ -27,10 +29,11 @@ export const TableBody = <T extends { id?: string | number }>({
   enableSelection,
   loading,
   emptyMessage = 'No data available',
+  theme,
 }: TableBodyProps<T>) => {
   const renderCell = (row: T, column: Column<T>) => {
     const value = (row as any)[column.key];
-    
+
     if (column.render) {
       return column.render(value, row, 0);
     }
@@ -53,7 +56,7 @@ export const TableBody = <T extends { id?: string | number }>({
     }
 
     onRowClick?.(row, event);
-    
+
     // Also handle selection if enabled
     if (enableSelection && onSelectRow) {
       const rowId = getRowId(row);
@@ -71,17 +74,17 @@ export const TableBody = <T extends { id?: string | number }>({
 
   if (loading && data.length === 0) {
     return (
-      <tbody>
+      <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
         {Array.from({ length: 5 }).map((_, index) => (
           <tr key={index} className="animate-pulse">
             {enableSelection && (
-              <td className="px-4 py-3">
-                <div className="w-4 h-4 bg-gray-200 rounded"></div>
+              <td className={theme.cell}>
+                <div className="w-4 h-4 bg-gray-200 dark:bg-gray-600 rounded"></div>
               </td>
             )}
             {columns.map((column) => (
-              <td key={String(column.key)} className="px-4 py-3">
-                <div className="h-4 bg-gray-200 rounded"></div>
+              <td key={String(column.key)} className={theme.cell}>
+                <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded"></div>
               </td>
             ))}
           </tr>
@@ -92,11 +95,11 @@ export const TableBody = <T extends { id?: string | number }>({
 
   if (data.length === 0 && !loading) {
     return (
-      <tbody>
+      <tbody className="bg-white dark:bg-gray-800">
         <tr>
           <td
             colSpan={columns.length + (enableSelection ? 1 : 0)}
-            className="px-4 py-8 text-center text-gray-500"
+            className="px-4 py-8 text-center text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800"
           >
             {emptyMessage}
           </td>
@@ -106,24 +109,22 @@ export const TableBody = <T extends { id?: string | number }>({
   }
 
   return (
-    <tbody className="bg-white divide-y divide-gray-200">
-      {data.map((row) => {
+    <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
+      {data.map((row, index) => {
         const rowId = getRowId(row);
         const isSelected = selectedRows.has(rowId);
 
         return (
           <tr
             key={rowId}
-            className={`transition-colors duration-150 cursor-pointer ${
-              isSelected ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'
-            }`}
+            className={`cursor-pointer ${isSelected ? theme.selectedRow : theme.row}`}
             onClick={(e) => handleRowClick(row, e)}
             onDoubleClick={(e) => onRowDoubleClick?.(row, e)}
             onMouseEnter={(e) => onRowHover?.(row, e)}
             onMouseLeave={(e) => onRowHover?.(null, e)}
           >
             {enableSelection && (
-              <td className="px-4 py-3">
+              <td className={theme.cell}>
                 <input
                   type="checkbox"
                   checked={isSelected}
@@ -131,14 +132,14 @@ export const TableBody = <T extends { id?: string | number }>({
                     e.stopPropagation();
                     onSelectRow?.(rowId, e.target.checked);
                   }}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  className="w-4 h-4 text-blue-600 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 dark:focus:ring-blue-400"
                 />
               </td>
             )}
             {columns.map((column) => (
               <td
                 key={String(column.key)}
-                className="px-4 py-3 text-sm text-gray-900"
+                className={theme.cell}
                 style={{
                   width: column.width,
                   minWidth: column.minWidth,
