@@ -103,6 +103,7 @@ export type OnCellClickCallback<T = BaseRowData> = (
   event: React.MouseEvent
 ) => void;
 export type OnTableRefreshCallback = () => void;
+export type OnBulkDeleteCallback<T = BaseRowData> = (selectedRows: T[]) => void;
 
 // Simplified component props
 export interface DataGridProps<T = BaseRowData>
@@ -117,6 +118,8 @@ export interface DataGridProps<T = BaseRowData>
   enableSorting?: boolean;
   enableFilters?: boolean;
   enableSelection?: boolean;
+  enableDelete?: boolean;
+  deleteConfirmation?: boolean;
 
   // Pagination
   pageSize?: number;
@@ -150,4 +153,5 @@ export interface DataGridProps<T = BaseRowData>
   onSelectionChange?: OnSelectionChangeCallback<T>;
   onTableRowHover?: OnTableRowHoverCallback<T>;
   onCellClick?: OnCellClickCallback<T>;
+  onBulkDelete?: OnBulkDeleteCallback<T>;
 }

@@ -14,7 +14,8 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
   enableSorting = true,
   enableFilters = true,
   enableSelection = true,
-  enableRefresh = false,
+  enableDelete = false,
+  deleteConfirmation = false,
   pageSize = 10,
   serverPageSize = 100,
   pageSizeOptions = [5, 10, 25, 50, 100],
@@ -22,6 +23,7 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
   variant = 'default',
   size = 'md',
   className = '',
+  enableRefresh = false,
 
   // Event callbacks
   onDataLoad,
@@ -39,6 +41,7 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
   onSelectionChange,
   onTableRowHover,
   onCellClick,
+  onBulkDelete,
 
   ...rest
 }: DataGridProps<T>) => {
@@ -142,6 +145,27 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
     [selectRow, onRowSelect, sourceData, getRowId]
   );
 
+  // Handle delete action
+  const handleDelete = useCallback(() => {
+    if (selectedRows.size === 0) return;
+
+    const executeDelete = () => {
+      if (onBulkDelete) {
+        onBulkDelete(selectedData);
+      }
+    };
+
+    if (deleteConfirmation) {
+      const count = selectedRows.size;
+      const message = `Are you sure you want to delete ${count} selected item${count === 1 ? '' : 's'}?`;
+      if (window.confirm(message)) {
+        executeDelete();
+      }
+    } else {
+      executeDelete();
+    }
+  }, [selectedRows.size, selectedData, onBulkDelete, deleteConfirmation]);
+
   // Handle refresh
   const handleRefresh = useCallback(() => {
     refresh();
@@ -195,7 +219,7 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
         </div>
       )}
 
-      {/* Row 2: Page Size Selector + Search Input */}
+      {/* Row 2: Page Size Selector + Search Input + Delete Button */}
       <div className="px-4 pb-4">
         <div className="flex justify-between items-center gap-4">
           {/* Show X entries on the left */}
@@ -215,18 +239,51 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
             <span className="text-sm text-gray-700 dark:text-gray-300">entries</span>
           </div>
 
-          {/* Search input on the right (reduced width) */}
-          {enableSearch && (
-            <div className="w-64 flex-shrink-0">
-              <SearchInput
-                value={searchTerm}
-                onChange={setSearchTerm}
-                placeholder="Search..."
-                disabled={loading}
-                className={theme.searchInput}
-              />
-            </div>
-          )}
+          {/* Search input and Delete button on the right */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {enableSearch && (
+              <div className="w-64">
+                <SearchInput
+                  value={searchTerm}
+                  onChange={setSearchTerm}
+                  placeholder="Search..."
+                  disabled={loading}
+                  className={theme.searchInput}
+                />
+              </div>
+            )}
+
+            {enableDelete && enableSelection && (
+              <button
+                onClick={handleDelete}
+                disabled={selectedRows.size === 0}
+                title={
+                  selectedRows.size === 0
+                    ? 'Select rows to delete'
+                    : `Delete ${selectedRows.size} selected item${selectedRows.size === 1 ? '' : 's'}`
+                }
+                className="px-3 py-2 bg-red-600 dark:bg-red-700 text-white rounded hover:bg-red-700 dark:hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:text-gray-500 dark:disabled:text-gray-400 disabled:cursor-not-allowed transition-colors duration-150 flex items-center gap-1"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+                {selectedRows.size > 0 && (
+                  <span className="text-sm">({selectedRows.size} selected)</span>
+                )}
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

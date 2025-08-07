@@ -355,16 +355,17 @@ interface ServerResponse<T> {
 | `onSortChange`          | `(sortConfig: SortConfig) => void`                                   | Called when sorting changes                  |
 | `onFilterChange`        | `(filters: ActiveFilter[]) => void`                                  | Called when filters change                   |
 | `onSearchChange`        | `(searchTerm: string) => void`                                       | Called when search term changes              |
-| `onTableRefresh`        | `() => void`                                                         | Called when refresh button is triggered      |
+| `onTableRefresh`        | `() => void`                                                         | Called when refresh is triggered             |
 | **Row & Cell Events**   |                                                                      |                                              |
 | `onTableRowClick`       | `(row: T, event: MouseEvent) => void`                                | Called on single row click                   |
 | `onTableRowDoubleClick` | `(row: T, event: MouseEvent) => boolean \| void`                     | Called on row double-click                   |
 | `onRowSelect`           | `(row: T, isSelected: boolean) => void`                              | Called when individual row selection changes |
 | `onSelectionChange`     | `(selectedRows: T[]) => void`                                        | Called when overall selection changes        |
+| `onBulkDelete`          | `(rows: T[]) => void`                                                | Called when delete button is clicked         |
 | `onTableRowHover`       | `(row: T \| null, event: MouseEvent) => void`                        | Called when hovering over rows               |
 | `onCellClick`           | `(value: any, row: T, column: Column<T>, event: MouseEvent) => void` | Called when clicking individual cells        |
 
-**DataGrid Props**
+### **DataGrid Props**
 
 | **Prop**               | **Type**                               | **Default**        | **Description**                          |
 | ---------------------- | -------------------------------------- | ------------------ | ---------------------------------------- |
@@ -378,6 +379,8 @@ interface ServerResponse<T> {
 | `enableFilters`        | `boolean`                              | `true`             | Enable advanced filtering                |
 | `enableSelection`      | `boolean`                              | `true`             | Enable row selection with checkboxes     |
 | `enableRefresh`        | `boolean`                              | `false`            | Show/hide the refresh button             |
+| `enableDelete`         | `boolean`                              | `false`            | Enable bulk delete functionality         |
+| `deleteConfirmation`   | `boolean`                              | `false`            | Show confirmation dialog for delete      |
 | **Pagination**         |                                        |                    |                                          |
 | `pageSize`             | `number`                               | `10`               | Client-side pagination size              |
 | `serverPageSize`       | `number`                               | `100`              | Server request batch size                |
@@ -434,6 +437,17 @@ The DataGrid automatically adapts to dark mode when using Tailwind CSS:
   // Add custom CSS classes for complete control
 />
 ```
+
+## Delete Functionality
+
+The delete button appears next to the search input and shows the selection count:
+
+<pre> ``` [Show 10 entries] ........................... [🔍 Search...][🗑️ (3 selected)] ``` </pre>
+
+- Button is **disabled** when no rows are selected
+- Shows **selection count** when items are selected
+- Supports **built-in confirmation dialog**
+- Only appears when **both** `enableDelete={true}` and `enableSelection={true}`
 
 ## 🔧 Advanced Usage
 
