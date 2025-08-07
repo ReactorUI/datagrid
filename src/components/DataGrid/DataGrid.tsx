@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { DataGridProps, Column } from '../../types';
 import { useDataGrid } from '../../hooks';
 import { SearchInput } from '../Search';
@@ -6,7 +6,7 @@ import { FilterControls } from '../Filter';
 import { TableHeader, TableBody } from '../Table';
 import { getTheme } from '../../themes';
 
-export const DataGrid = <T extends { id?: string | number } = any>({
+export const DataGrid = <T extends { [key: string]: any } = any>({
   data,
   endpoint,
   columns: columnsProp = [],
@@ -14,6 +14,7 @@ export const DataGrid = <T extends { id?: string | number } = any>({
   enableSorting = true,
   enableFilters = true,
   enableSelection = true,
+  enableRefresh = false,
   pageSize = 10,
   serverPageSize = 100,
   pageSizeOptions = [5, 10, 25, 50, 100],
@@ -21,7 +22,6 @@ export const DataGrid = <T extends { id?: string | number } = any>({
   variant = 'default',
   size = 'md',
   className = '',
-  enableRefresh = true,
 
   // Event callbacks
   onDataLoad,
@@ -70,6 +70,7 @@ export const DataGrid = <T extends { id?: string | number } = any>({
     paginationInfo,
     selectedData,
     refresh,
+    getRowId, // Get the stable ID generator
   } = useDataGrid({
     data,
     endpoint,
@@ -104,29 +105,48 @@ export const DataGrid = <T extends { id?: string | number } = any>({
     return [];
   }, [columnsProp, sourceData]);
 
-  // Handle selection changes
-  React.useEffect(() => {
-    if (onSelectionChange) {
-      onSelectionChange(selectedData);
+  // Memoize the selection change handler
+  const handleSelectionChange = useCallback(
+    (newSelectedData: T[]) => {
+      onSelectionChange?.(newSelectedData);
+    },
+    [onSelectionChange]
+  );
+
+  // Use a ref to track previous selectedData to avoid unnecessary calls
+  const previousSelectedData = React.useRef<T[]>([]);
+
+  // Only call onSelectionChange when selectedData actually changes
+  React.useLayoutEffect(() => {
+    const hasChanged =
+      selectedData.length !== previousSelectedData.current.length ||
+      selectedData.some((item, index) => item !== previousSelectedData.current[index]);
+
+    if (hasChanged && onSelectionChange) {
+      previousSelectedData.current = selectedData;
+      handleSelectionChange(selectedData);
     }
-  }, [selectedData, onSelectionChange]);
+  }, [selectedData, handleSelectionChange]);
 
   // Handle row selection with callback
-  const handleRowSelect = (rowId: string, selected: boolean) => {
-    selectRow(rowId, selected);
-    if (onRowSelect) {
-      const row = sourceData.find((r) => String(r.id) === rowId);
-      if (row) {
-        onRowSelect(row, selected);
+  const handleRowSelect = useCallback(
+    (rowId: string, selected: boolean) => {
+      selectRow(rowId, selected);
+      if (onRowSelect) {
+        const row = sourceData.find((r) => getRowId(r) === rowId);
+        if (row) {
+          onRowSelect(row, selected);
+        }
       }
-    }
-  };
+    },
+    [selectRow, onRowSelect, sourceData, getRowId]
+  );
 
   // Handle refresh
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     refresh();
     onTableRefresh?.();
-  };
+  }, [refresh, onTableRefresh]);
 
   if (error) {
     return (
@@ -235,6 +255,7 @@ export const DataGrid = <T extends { id?: string | number } = any>({
             enableSelection={enableSelection}
             loading={loading}
             theme={theme}
+            getRowId={getRowId} // Pass the stable ID generator
           />
         </table>
       </div>

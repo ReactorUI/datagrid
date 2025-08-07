@@ -15,9 +15,10 @@ interface TableBodyProps<T> {
   loading: boolean;
   emptyMessage?: string;
   theme: Theme;
+  getRowId?: (row: T) => string; // Accept the ID generator from parent
 }
 
-export const TableBody = <T extends { id?: string | number }>({
+export const TableBody = <T extends Record<string, any>>({
   columns,
   data,
   selectedRows,
@@ -30,7 +31,33 @@ export const TableBody = <T extends { id?: string | number }>({
   loading,
   emptyMessage = 'No data available',
   theme,
+  getRowId,
 }: TableBodyProps<T>) => {
+  // Generate stable row IDs - always generate, never use existing fields
+  const rowIdMap = React.useMemo(() => {
+    const map = new Map<any, string>();
+    data.forEach((row, index) => {
+      // Always generate based on index and content hash
+      const contentHash = JSON.stringify(row)
+        .slice(0, 50)
+        .replace(/[^a-zA-Z0-9]/g, '');
+      const stableId = `row-${index}-${contentHash}`;
+      map.set(row, stableId);
+    });
+    return map;
+  }, [data]);
+
+  // Use provided getRowId or fallback to generated IDs
+  const getStableRowId = React.useCallback(
+    (row: T): string => {
+      if (getRowId) {
+        return getRowId(row);
+      }
+      return rowIdMap.get(row) || `fallback-${Math.random().toString(36).substr(2, 9)}`;
+    },
+    [getRowId, rowIdMap]
+  );
+
   const renderCell = (row: T, column: Column<T>) => {
     const value = (row as any)[column.key];
 
@@ -39,10 +66,6 @@ export const TableBody = <T extends { id?: string | number }>({
     }
 
     return value?.toString() || '';
-  };
-
-  const getRowId = (row: T): string => {
-    return String(row.id || Math.random());
   };
 
   const handleRowClick = (row: T, event: React.MouseEvent) => {
@@ -59,7 +82,7 @@ export const TableBody = <T extends { id?: string | number }>({
 
     // Also handle selection if enabled
     if (enableSelection && onSelectRow) {
-      const rowId = getRowId(row);
+      const rowId = getStableRowId(row);
       const isSelected = selectedRows.has(rowId);
       onSelectRow(rowId, !isSelected);
     }
@@ -111,7 +134,7 @@ export const TableBody = <T extends { id?: string | number }>({
   return (
     <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
       {data.map((row, index) => {
-        const rowId = getRowId(row);
+        const rowId = getStableRowId(row);
         const isSelected = selectedRows.has(rowId);
 
         return (

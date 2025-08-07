@@ -377,7 +377,7 @@ interface ServerResponse<T> {
 | `enableSorting`        | `boolean`                              | `true`             | Enable column sorting                    |
 | `enableFilters`        | `boolean`                              | `true`             | Enable advanced filtering                |
 | `enableSelection`      | `boolean`                              | `true`             | Enable row selection with checkboxes     |
-| `enableRefresh`        | `boolean`                              | `true`             | Show/hide the refresh button             |
+| `enableRefresh`        | `boolean`                              | `false`            | Show/hide the refresh button             |
 | **Pagination**         |                                        |                    |                                          |
 | `pageSize`             | `number`                               | `10`               | Client-side pagination size              |
 | `serverPageSize`       | `number`                               | `100`              | Server request batch size                |

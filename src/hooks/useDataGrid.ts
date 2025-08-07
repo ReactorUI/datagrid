@@ -53,7 +53,7 @@ export const useDataGrid = <T extends BaseRowData>({
   const [sortConfig, setSortConfig] = useState<SortConfig>({ column: '', direction: 'asc' });
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 
-  // Pagination state (simplified)
+  // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [currentPageSize, setCurrentPageSize] = useState(pageSize);
   const [continuationToken, setContinuationToken] = useState<string | undefined>();
@@ -61,6 +61,28 @@ export const useDataGrid = <T extends BaseRowData>({
 
   // Determine data source
   const sourceData = staticData || serverData;
+
+  // Generate stable unique IDs for rows - always generate, never use existing fields
+  const rowIdMap = useMemo(() => {
+    const map = new Map<any, string>();
+    sourceData.forEach((row, index) => {
+      // Always generate a stable ID based on index and content hash
+      const contentHash = JSON.stringify(row)
+        .slice(0, 50)
+        .replace(/[^a-zA-Z0-9]/g, '');
+      const stableId = `row-${index}-${contentHash}`;
+      map.set(row, stableId);
+    });
+    return map;
+  }, [sourceData]);
+
+  // Helper function to get row ID - always uses generated IDs
+  const getRowId = useCallback(
+    (row: T): string => {
+      return rowIdMap.get(row) || `fallback-${Math.random().toString(36).substr(2, 9)}`;
+    },
+    [rowIdMap]
+  );
 
   // Internal loading state handler
   const handleLoadingChange = useCallback(
@@ -120,6 +142,14 @@ export const useDataGrid = <T extends BaseRowData>({
     const end = start + currentPageSize;
     return processedData.slice(start, end);
   }, [processedData, currentPage, currentPageSize, staticData, sourceData]);
+
+  // Memoize selectedData with proper dependencies and stable ID handling
+  const selectedData = useMemo(() => {
+    return sourceData.filter((row) => {
+      const rowId = getRowId(row);
+      return selectedRows.has(rowId);
+    });
+  }, [sourceData, selectedRows, getRowId]);
 
   // Pagination info
   const paginationInfo = useMemo((): PaginationInfo => {
@@ -413,13 +443,13 @@ export const useDataGrid = <T extends BaseRowData>({
     (selected: boolean) => {
       if (selected) {
         const currentPageData = staticData ? paginatedData : sourceData;
-        const allIds = currentPageData.map((row) => String(row.id)).filter(Boolean);
+        const allIds = currentPageData.map(getRowId);
         setSelectedRows(new Set(allIds));
       } else {
         setSelectedRows(new Set());
       }
     },
-    [staticData, paginatedData, sourceData]
+    [staticData, paginatedData, sourceData, getRowId]
   );
 
   const refresh = useCallback(() => {
@@ -468,7 +498,8 @@ export const useDataGrid = <T extends BaseRowData>({
 
     // Computed
     paginationInfo,
-    selectedData: sourceData.filter((row) => selectedRows.has(String(row.id))),
+    selectedData,
     hasSelection: selectedRows.size > 0,
+    getRowId, // Export the helper function
   };
 };
