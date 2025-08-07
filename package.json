@@ -1,11 +1,15 @@
 {
   "name": "@reactorui/datagrid",
-  "version": "0.1.0",
-  "description": "A high-performance, reactive data grid for React applications",
+  "version": "1.0.0",
+  "description": "High-performance React data grid with TypeScript support, server-side integration, and continuation token pagination",
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": ["dist", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "npm run clean && tsc",
     "build:rollup": "npm run clean && rollup -c",
@@ -19,7 +23,19 @@
     "prepublishOnly": "npm run build && npm run test"
   },
   "keywords": [
-    "react", "datagrid", "table", "data-table", "grid", "reactor", "typescript", "performance"
+    "react",
+    "datagrid",
+    "table",
+    "data-table",
+    "grid",
+    "reactor",
+    "typescript",
+    "performance",
+    "pagination",
+    "continuation-token",
+    "server-side",
+    "filtering",
+    "sorting"
   ],
   "author": "ReactorUI",
   "license": "MIT",
