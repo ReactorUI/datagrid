@@ -100,11 +100,6 @@ export const FilterControls = <T,>({
       value: filterValue.trim(),
       dataType: selectedColumn?.dataType || 'string',
     });
-
-    // Reset form
-    setFilterColumn('');
-    setFilterOperator('eq');
-    setFilterValue('');
   };
 
   const canApplyFilter = filterColumn && filterValue.trim();

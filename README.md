@@ -300,6 +300,8 @@ function UserManagement() {
 | `className`            | `string`                               | `''`               | Additional CSS classes                   |
 | **HTTP Configuration** |                                        |                    |                                          |
 | `httpConfig`           | `HttpConfig`                           | –                  | Authentication and request configuration |
+| **Refresh Controls**   |                                        |                    |                                          |
+| `showRefreshButton`    | `boolean`                              | `true`             | Show/hide the refresh button             |
 
 ## Column Configuration
 

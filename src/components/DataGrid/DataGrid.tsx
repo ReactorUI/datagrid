@@ -19,10 +19,11 @@ export const DataGrid = <T extends { id?: string | number } = any>({
   serverPageSize = 100,
   pageSizeOptions = [5, 10, 25, 50, 100],
   httpConfig,
+  showRefreshButton = true, // Default to true for backward compatibility
   variant = 'default',
   size = 'md',
   className = '',
-  
+
   // Event callbacks (renamed to avoid HTML conflicts)
   onDataLoad,
   onDataError,
@@ -39,7 +40,7 @@ export const DataGrid = <T extends { id?: string | number } = any>({
   onSelectionChange,
   onTableRowHover,
   onCellClick,
-  
+
   ...rest
 }: DataGridProps<T>) => {
   const theme = getTheme(variant);
@@ -91,7 +92,7 @@ export const DataGrid = <T extends { id?: string | number } = any>({
 
     if (sourceData.length > 0) {
       const firstRow = sourceData[0];
-      return Object.keys(firstRow).map(key => ({
+      return Object.keys(firstRow).map((key) => ({
         key,
         label: key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'),
         sortable: true,
@@ -114,7 +115,7 @@ export const DataGrid = <T extends { id?: string | number } = any>({
   const handleRowSelect = (rowId: string, selected: boolean) => {
     selectRow(rowId, selected);
     if (onRowSelect) {
-      const row = sourceData.find(r => String(r.id) === rowId);
+      const row = sourceData.find((r) => String(r.id) === rowId);
       if (row) {
         onRowSelect(row, selected);
       }
@@ -133,7 +134,7 @@ export const DataGrid = <T extends { id?: string | number } = any>({
         <div className="px-4 py-8 text-center">
           <div className="text-red-600 mb-2">Error loading data</div>
           <div className="text-sm text-gray-600 mb-4">{error}</div>
-          <button 
+          <button
             onClick={handleRefresh}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
@@ -171,14 +172,17 @@ export const DataGrid = <T extends { id?: string | number } = any>({
               />
             </div>
           )}
-          
-          <button
-            onClick={handleRefresh}
-            disabled={loading}
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:opacity-50"
-          >
-            {loading ? 'Loading...' : 'Refresh'}
-          </button>
+
+          {/* Conditional Refresh Button */}
+          {showRefreshButton && (
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:opacity-50"
+            >
+              {loading ? 'Loading...' : 'Refresh'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -232,7 +236,7 @@ function inferDataType(value: any): 'string' | 'number' | 'boolean' | 'date' | '
   if (value == null) return 'string';
   if (typeof value === 'boolean') return 'boolean';
   if (typeof value === 'number') return 'number';
-  
+
   if (typeof value === 'string') {
     // Try to detect dates
     const dateValue = new Date(value);
@@ -240,6 +244,6 @@ function inferDataType(value: any): 'string' | 'number' | 'boolean' | 'date' | '
       return value.includes('T') || value.includes(' ') ? 'datetime' : 'date';
     }
   }
-  
+
   return 'string';
 }
