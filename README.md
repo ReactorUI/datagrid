@@ -1,5 +1,9 @@
 # @reactorui/datagrid
 
+[![npm](https://img.shields.io/npm/dw/@reactorui/datagrid)](https://www.npmjs.com/package/@reactorui/datagrid)
+[![npm version](https://img.shields.io/npm/v/@reactorui/datagrid)](https://www.npmjs.com/package/@reactorui/datagrid)
+[![license](https://img.shields.io/npm/l/@reactorui/datagrid)](https://github.com/your-org/datagrid/blob/main/LICENSE)
+
 A high-performance, feature-rich React data grid component with TypeScript support, server-side integration, pagination and advanced filtering capabilities.
 
 ## 🖼️ Screenshots
