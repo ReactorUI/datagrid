@@ -775,3 +775,8 @@ Open a Pull Request
 This project is licensed under the MIT License - see the LICENSE file for details.
 
 Made with ❤️ by ReactorUI
+
+## Author
+
+**Name:** Miracle Chukwuemeka  
+**GitHub:** [@code-Miracle49](https://github.com/code-Miracle49)
