@@ -778,5 +778,5 @@ Made with ❤️ by ReactorUI
 
 ## Author
 
-**Name:** Miracle
+**Name:** Miracle<br>
 **GitHub:** [@code-Miracle49](https://github.com/code-Miracle49)
