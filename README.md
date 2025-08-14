@@ -781,11 +781,6 @@ Part of the ReactorUI ecosystem:
 - 📊 [@reactorui/recurrence](https://www.npmjs.com/package/@reactorui/recurrence) - A powerful, flexible recurrence rule builder for React applications
 - 🔜 More components coming soon!
 
-## Author
-
-**Name:** Miracle<br>
-**GitHub:** [@code-Miracle49](https://github.com/code-Miracle49)
-
 ---
 
 **Made with ❤️ by ReactorUI**
