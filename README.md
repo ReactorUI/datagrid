@@ -776,6 +776,13 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 Made with ❤️ by ReactorUI
 
+## Related Projects
+
+Part of the ReactorUI ecosystem:
+
+- 📊 [@reactorui/datagrid](https://www.npmjs.com/package/@reactorui/recurrence) - A powerful, flexible recurrence rule builder for React applications
+- 🔜 More components coming soon!
+
 ## Author
 
 **Name:** Miracle<br>
