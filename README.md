@@ -770,6 +770,11 @@ Commit your changes (git commit -m 'Add amazing feature')
 Push to the branch (git push origin feature/amazing-feature)
 Open a Pull Request
 
+## Support
+
+- 📖 **Documentation**: Check this README and inline TypeScript types
+- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/ReactorUI/datagrid/issues)
+
 ## 📄 License
 
 MIT License - see [LICENSE](LICENSE) file for details.
