@@ -1,6 +1,6 @@
 # @reactorui/datagrid
 
-[![npm](https://img.shields.io/npm/dw/@reactorui/datagrid)](https://www.npmjs.com/package/@reactorui/datagrid)
+[![npm](https://img.shields.io/npm/dt/@reactorui/datagrid)](https://www.npmjs.com/package/@reactorui/datagrid)
 [![npm version](https://img.shields.io/npm/v/@reactorui/datagrid)](https://www.npmjs.com/package/@reactorui/datagrid)
 [![license](https://img.shields.io/npm/l/@reactorui/datagrid)](https://github.com/your-org/datagrid/blob/main/LICENSE)
 
