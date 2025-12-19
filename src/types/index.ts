@@ -125,7 +125,7 @@ export type OnCellClickCallback<T = BaseRowData> = (
 ) => void;
 
 // Action Events
-export type OnRefreshCallback = () => void;
+export type OnTableRefreshCallback = () => void;
 export type OnBulkDeleteCallback<T = BaseRowData> = (selectedRows: T[]) => void;
 
 // ============================================================================
@@ -225,7 +225,7 @@ export interface DataGridProps<T = BaseRowData>
   onCellClick?: OnCellClickCallback<T>;
 
   // ===== ACTION EVENTS =====
-  onTableRefresh?: OnRefreshCallback;
+  onTableRefresh?: OnTableRefreshCallback;
   onBulkDelete?: OnBulkDeleteCallback<T>;
 }
 
