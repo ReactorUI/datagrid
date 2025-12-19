@@ -1,34 +1,46 @@
-import { HttpConfig, ServerRequest, ServerResponse } from '../types';
+// File: src/utils/index.ts
 
-// Data formatting utilities (keeping existing ones)
+import type { ActiveFilter, SortConfig, DataGridRequest } from '../types';
+
+// ============================================================================
+// Data Formatting Utilities
+// ============================================================================
+
 export const formatters = {
-  date: (value: string, includeTime = false) => {
+  date: (value: string, includeTime = false): string => {
     if (!value) return '';
     const date = new Date(value);
     return includeTime ? date.toLocaleString() : date.toLocaleDateString();
   },
 
-  currency: (value: number, currency = 'USD') => {
-    return new Intl.NumberFormat('en-US', {
+  currency: (value: number, currency = 'USD', locale = 'en-US'): string => {
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency,
     }).format(value);
   },
 
-  number: (value: number, decimals = 0) => {
-    return new Intl.NumberFormat('en-US', {
+  number: (value: number, decimals = 0, locale = 'en-US'): string => {
+    return new Intl.NumberFormat(locale, {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
     }).format(value);
   },
 
-  truncate: (text: string, length: number) => {
+  truncate: (text: string, length: number): string => {
     if (!text || text.length <= length) return text;
     return text.substring(0, length) + '...';
   },
+
+  percentage: (value: number, decimals = 0): string => {
+    return `${(value * 100).toFixed(decimals)}%`;
+  },
 };
 
-// Filter comparison functions (keeping existing implementation)
+// ============================================================================
+// Filter Comparison Functions
+// ============================================================================
+
 export const compareValues = (
   dataValue: any,
   filterValue: any,
@@ -39,215 +51,212 @@ export const compareValues = (
 
   switch (dataType) {
     case 'string':
-      const str = dataValue.toString().toLowerCase();
-      const filter = filterValue.toString().toLowerCase();
-
-      switch (operator) {
-        case 'eq':
-          return str === filter;
-        case 'contains':
-          return str.includes(filter);
-        case 'startsWith':
-          return str.startsWith(filter);
-        case 'endsWith':
-          return str.endsWith(filter);
-        default:
-          return str.includes(filter);
-      }
-
+      return compareString(dataValue, filterValue, operator);
     case 'number':
-      const num = parseFloat(dataValue);
-      const filterNum = parseFloat(filterValue);
-
-      switch (operator) {
-        case 'eq':
-          return num === filterNum;
-        case 'gt':
-          return num > filterNum;
-        case 'gte':
-          return num >= filterNum;
-        case 'lt':
-          return num < filterNum;
-        case 'lte':
-          return num <= filterNum;
-        default:
-          return num === filterNum;
-      }
-
+      return compareNumber(dataValue, filterValue, operator);
     case 'date':
     case 'datetime':
-      const date = new Date(dataValue).getTime();
-      const filterDate = new Date(filterValue).getTime();
-
-      switch (operator) {
-        case 'eq':
-          return date === filterDate;
-        case 'gt':
-          return date > filterDate;
-        case 'gte':
-          return date >= filterDate;
-        case 'lt':
-          return date < filterDate;
-        case 'lte':
-          return date <= filterDate;
-        default:
-          return date === filterDate;
-      }
-
+      return compareDate(dataValue, filterValue, operator);
     case 'boolean':
-      return Boolean(dataValue) === Boolean(filterValue);
-
+      return Boolean(dataValue) === (filterValue === 'true' || filterValue === true);
     default:
       return String(dataValue).toLowerCase().includes(String(filterValue).toLowerCase());
   }
 };
 
-// Simplified API utilities
-export const createApiRequest = async <T>(
-  endpoint: string,
-  request: ServerRequest,
-  config: HttpConfig = {}
-): Promise<ServerResponse<T>> => {
-  const {
-    method = 'GET',
-    bearerToken,
-    apiKey,
-    customHeaders = {},
-    withCredentials = false,
-    timeout = 30000,
-  } = config;
+const compareString = (value: any, filter: any, operator: string): boolean => {
+  const str = String(value).toLowerCase();
+  const filterStr = String(filter).toLowerCase();
 
-  // Build headers
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...customHeaders,
-  };
-
-  if (bearerToken) {
-    headers.Authorization = `Bearer ${bearerToken}`;
-  }
-
-  if (apiKey) {
-    headers['X-API-Key'] = apiKey;
-  }
-
-  // Build request
-  const requestOptions: RequestInit = {
-    method,
-    headers,
-    credentials: withCredentials ? 'include' : 'same-origin',
-  };
-
-  let url = endpoint;
-
-  if (method === 'POST') {
-    requestOptions.body = JSON.stringify({ request });
-  } else {
-    const params = new URLSearchParams({ request: JSON.stringify(request) });
-    url = `${endpoint}?${params.toString()}`;
-  }
-
-  // Create timeout
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
-  requestOptions.signal = controller.signal;
-
-  try {
-    const response = await fetch(url, requestOptions);
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return mapServerResponse<T>(data);
-  } catch (error) {
-    clearTimeout(timeoutId);
-    throw error;
+  switch (operator) {
+    case 'eq':
+      return str === filterStr;
+    case 'neq':
+      return str !== filterStr;
+    case 'contains':
+      return str.includes(filterStr);
+    case 'startsWith':
+      return str.startsWith(filterStr);
+    case 'endsWith':
+      return str.endsWith(filterStr);
+    default:
+      return str.includes(filterStr);
   }
 };
 
-// Simplified server response mapping with flexible casing
-export const mapServerResponse = <T>(data: any): ServerResponse<T> => {
-  // Helper to get value with flexible casing
-  const getValue = (obj: any, keys: string[]) => {
-    for (const key of keys) {
-      if (obj[key] !== undefined) return obj[key];
-    }
-    return undefined;
-  };
+const compareNumber = (value: any, filter: any, operator: string): boolean => {
+  const num = parseFloat(value);
+  const filterNum = parseFloat(filter);
 
-  // Get items with flexible casing
-  const items = getValue(data, ['Items', 'items', 'data', 'Data']);
+  if (isNaN(num) || isNaN(filterNum)) return false;
 
-  // Get continuation token with flexible casing
-  const continuationToken = getValue(data, [
-    'ContinuationToken',
-    'continuationToken',
-    'continuationtoken',
-    'nextToken',
-    'next_token',
-    'NextToken',
-  ]);
-
-  // Get hasMore with flexible casing
-  const hasMore = getValue(data, [
-    'HasMore',
-    'hasMore',
-    'hasmore',
-    'has_more',
-    'hasNextPage',
-    'has_next_page',
-  ]);
-
-  // Get count with flexible casing
-  const count = getValue(data, ['Count', 'count', 'COUNT', 'total', 'Total', 'length', 'size']);
-
-  // Direct mapping for arrays
-  if (Array.isArray(data)) {
-    return {
-      Items: data,
-      HasMore: false,
-      Count: data.length,
-    };
+  switch (operator) {
+    case 'eq':
+      return num === filterNum;
+    case 'neq':
+      return num !== filterNum;
+    case 'gt':
+      return num > filterNum;
+    case 'gte':
+      return num >= filterNum;
+    case 'lt':
+      return num < filterNum;
+    case 'lte':
+      return num <= filterNum;
+    default:
+      return num === filterNum;
   }
-
-  // AWS DynamoDB style response (special case)
-  if (data.Items && data.LastEvaluatedKey) {
-    return {
-      Items: data.Items,
-      ContinuationToken: JSON.stringify(data.LastEvaluatedKey),
-      HasMore: !!data.LastEvaluatedKey,
-      Count: data.Count || data.Items.length,
-    };
-  }
-
-  // Standard response mapping
-  return {
-    Items: Array.isArray(items) ? items : [],
-    ContinuationToken: continuationToken,
-    HasMore: Boolean(hasMore),
-    Count: Number(count) || 0,
-  };
 };
 
-// Sorting utilities (keeping existing implementation)
+const compareDate = (value: any, filter: any, operator: string): boolean => {
+  const date = new Date(value).getTime();
+  const filterDate = new Date(filter).getTime();
+
+  if (isNaN(date) || isNaN(filterDate)) return false;
+
+  switch (operator) {
+    case 'eq':
+      return date === filterDate;
+    case 'neq':
+      return date !== filterDate;
+    case 'gt':
+      return date > filterDate;
+    case 'gte':
+      return date >= filterDate;
+    case 'lt':
+      return date < filterDate;
+    case 'lte':
+      return date <= filterDate;
+    default:
+      return date === filterDate;
+  }
+};
+
+// ============================================================================
+// Sorting Utilities
+// ============================================================================
+
 export const sortData = <T>(data: T[], sortColumn: string, direction: 'asc' | 'desc'): T[] => {
-  if (!sortColumn) return data;
+  if (!sortColumn || data.length === 0) return data;
 
   return [...data].sort((a, b) => {
     const aVal = (a as any)[sortColumn];
     const bVal = (b as any)[sortColumn];
 
+    // Handle nulls - always sort to end
     if (aVal == null && bVal == null) return 0;
     if (aVal == null) return 1;
     if (bVal == null) return -1;
 
-    const aStr = String(aVal).toLowerCase();
-    const bStr = String(bVal).toLowerCase();
+    // Compare based on type
+    let result: number;
 
-    const result = aStr.localeCompare(bStr, undefined, { numeric: true });
+    if (typeof aVal === 'number' && typeof bVal === 'number') {
+      result = aVal - bVal;
+    } else if (aVal instanceof Date && bVal instanceof Date) {
+      result = aVal.getTime() - bVal.getTime();
+    } else {
+      // String comparison with natural sorting
+      result = String(aVal).localeCompare(String(bVal), undefined, {
+        numeric: true,
+        sensitivity: 'base',
+      });
+    }
+
     return direction === 'desc' ? -result : result;
   });
 };
+
+// ============================================================================
+// Data Type Inference
+// ============================================================================
+
+export const inferDataType = (
+  value: any
+): 'string' | 'number' | 'boolean' | 'date' | 'datetime' => {
+  if (value == null) return 'string';
+  if (typeof value === 'boolean') return 'boolean';
+  if (typeof value === 'number') return 'number';
+
+  if (typeof value === 'string') {
+    // Check for ISO date format
+    const isoDateRegex = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2})?/;
+    if (isoDateRegex.test(value)) {
+      const date = new Date(value);
+      if (!isNaN(date.getTime()) && date.getFullYear() > 1900) {
+        return value.includes('T') ? 'datetime' : 'date';
+      }
+    }
+  }
+
+  return 'string';
+};
+
+// ============================================================================
+// Column Auto-Detection
+// ============================================================================
+
+export const inferColumns = <T extends Record<string, any>>(
+  data: T[]
+): Array<{
+  key: string;
+  label: string;
+  sortable: boolean;
+  filterable: boolean;
+  dataType: 'string' | 'number' | 'boolean' | 'date' | 'datetime';
+}> => {
+  if (data.length === 0) return [];
+
+  const firstRow = data[0];
+  return Object.keys(firstRow).map((key) => ({
+    key,
+    label: formatColumnLabel(key),
+    sortable: true,
+    filterable: true,
+    dataType: inferDataType(firstRow[key]),
+  }));
+};
+
+const formatColumnLabel = (key: string): string => {
+  return key
+    .replace(/([A-Z])/g, ' $1') // Add space before capitals
+    .replace(/[_-]/g, ' ') // Replace underscores/hyphens with spaces
+    .replace(/^\w/, (c) => c.toUpperCase()) // Capitalize first letter
+    .trim();
+};
+
+// ============================================================================
+// Row ID Utilities
+// ============================================================================
+
+export const generateRowId = <T extends Record<string, any>>(row: T, index: number): string => {
+  // Prefer existing id field
+  if (row.id !== undefined) return String(row.id);
+  if (row._id !== undefined) return String(row._id);
+  if (row.key !== undefined) return String(row.key);
+
+  // Generate stable ID from content
+  const contentHash = JSON.stringify(row)
+    .slice(0, 50)
+    .replace(/[^a-zA-Z0-9]/g, '');
+
+  return `row-${index}-${contentHash}`;
+};
+
+// ============================================================================
+// Export Helper for Building Requests (for parent component use)
+// ============================================================================
+
+export const buildRequest = (
+  page: number,
+  pageSize: number,
+  search: string,
+  filters: ActiveFilter[],
+  sort: SortConfig
+): DataGridRequest => ({
+  page,
+  pageSize,
+  search,
+  filters,
+  sort,
+});

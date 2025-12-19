@@ -1,117 +1,232 @@
-import React, { useState } from 'react';
-import { Column, ActiveFilter } from '../../types';
+// File: src/components/Filter/FilterControls.tsx
+
+import React, { useState, useCallback, useMemo } from 'react';
+import { Column, ActiveFilter, FilterOperator } from '../../types';
+
+// ============================================================================
+// Types
+// ============================================================================
 
 interface FilterControlsProps<T> {
   columns: Column<T>[];
   activeFilters: ActiveFilter[];
-  onAddFilter: (filter: Omit<ActiveFilter, 'label'>) => void;
+  onApplyFilter: (filter: Omit<ActiveFilter, 'label'>) => void;
   onRemoveFilter: (index: number) => void;
   onClearFilters: () => void;
+  /** Disables all controls (e.g., when data is loading) */
+  disabled?: boolean;
+  /** Shows spinner specifically on Apply Filter button */
+  filterLoading?: boolean;
 }
+
+interface OperatorOption {
+  value: FilterOperator;
+  label: string;
+}
+
+// ============================================================================
+// Operator Configuration
+// ============================================================================
+
+const OPERATORS: Record<string, OperatorOption[]> = {
+  string: [
+    { value: 'eq', label: 'equals' },
+    { value: 'neq', label: 'not equals' },
+    { value: 'contains', label: 'contains' },
+    { value: 'startsWith', label: 'starts with' },
+    { value: 'endsWith', label: 'ends with' },
+  ],
+  number: [
+    { value: 'eq', label: 'equals' },
+    { value: 'neq', label: 'not equals' },
+    { value: 'gt', label: 'greater than' },
+    { value: 'gte', label: 'greater or equal' },
+    { value: 'lt', label: 'less than' },
+    { value: 'lte', label: 'less or equal' },
+  ],
+  date: [
+    { value: 'eq', label: 'equals' },
+    { value: 'gt', label: 'after' },
+    { value: 'gte', label: 'on or after' },
+    { value: 'lt', label: 'before' },
+    { value: 'lte', label: 'on or before' },
+  ],
+  datetime: [
+    { value: 'eq', label: 'equals' },
+    { value: 'gt', label: 'after' },
+    { value: 'gte', label: 'on or after' },
+    { value: 'lt', label: 'before' },
+    { value: 'lte', label: 'on or before' },
+  ],
+  boolean: [{ value: 'eq', label: 'equals' }],
+};
+
+const DEFAULT_OPERATORS: OperatorOption[] = [{ value: 'eq', label: 'equals' }];
+
+// ============================================================================
+// Spinner Component
+// ============================================================================
+
+const Spinner: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
+  <svg
+    className={`animate-spin ${className}`}
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+  >
+    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+    <path
+      className="opacity-75"
+      fill="currentColor"
+      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+    />
+  </svg>
+);
+
+// ============================================================================
+// Styles (centralized for DRY)
+// ============================================================================
+
+const styles = {
+  select:
+    'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400 disabled:cursor-not-allowed',
+  input:
+    'px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:cursor-not-allowed',
+  inputDisabled:
+    'px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed',
+  buttonPrimary:
+    'px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white text-sm rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:text-gray-500 dark:disabled:text-gray-400 disabled:cursor-not-allowed transition-colors duration-150 inline-flex items-center gap-2',
+  buttonSecondary:
+    'px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150',
+  filterTag:
+    'inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-full text-sm',
+  filterTagRemove:
+    'ml-1 text-blue-600 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-100 focus:outline-none transition-colors duration-150',
+  label: 'block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1',
+};
+
+// ============================================================================
+// Component
+// ============================================================================
 
 export const FilterControls = <T,>({
   columns,
   activeFilters,
-  onAddFilter,
+  onApplyFilter,
   onRemoveFilter,
   onClearFilters,
+  disabled = false,
+  filterLoading = false,
 }: FilterControlsProps<T>) => {
+  // Form state
   const [filterColumn, setFilterColumn] = useState('');
-  const [filterOperator, setFilterOperator] = useState('eq');
+  const [filterOperator, setFilterOperator] = useState<FilterOperator>('eq');
   const [filterValue, setFilterValue] = useState('');
 
-  const filterableColumns = columns.filter((col) => col.filterable !== false);
-  const selectedColumn = filterableColumns.find((col) => col.key === filterColumn);
+  // Combined disabled state - disabled OR filterLoading
+  const isDisabled = disabled || filterLoading;
 
-  const getOperatorOptions = () => {
-    if (!selectedColumn) return [{ value: 'eq', label: 'equals' }];
+  // Derived state
+  const filterableColumns = useMemo(
+    () => columns.filter((col) => col.filterable !== false),
+    [columns]
+  );
 
-    switch (selectedColumn.dataType) {
-      case 'number':
-      case 'date':
-      case 'datetime':
-        return [
-          { value: 'eq', label: 'equals' },
-          { value: 'gt', label: 'greater than' },
-          { value: 'gte', label: 'greater than or equal' },
-          { value: 'lt', label: 'less than' },
-          { value: 'lte', label: 'less than or equal' },
-        ];
-      case 'string':
-        return [
-          { value: 'eq', label: 'equals' },
-          { value: 'contains', label: 'contains' },
-          { value: 'startsWith', label: 'starts with' },
-          { value: 'endsWith', label: 'ends with' },
-        ];
-      case 'boolean':
-        return [{ value: 'eq', label: 'equals' }];
-      default:
-        return [{ value: 'eq', label: 'equals' }];
-    }
-  };
+  const selectedColumn = useMemo(
+    () => filterableColumns.find((col) => col.key === filterColumn),
+    [filterableColumns, filterColumn]
+  );
 
-  const renderFilterInput = () => {
+  const operatorOptions = useMemo(
+    () => OPERATORS[selectedColumn?.dataType ?? 'string'] ?? DEFAULT_OPERATORS,
+    [selectedColumn]
+  );
+
+  const canApply = filterColumn && filterValue.trim();
+
+  // Handlers
+  const handleColumnChange = useCallback((columnKey: string) => {
+    setFilterColumn(columnKey);
+    setFilterOperator('eq');
+    setFilterValue('');
+  }, []);
+
+  const handleApply = useCallback(() => {
+    if (!canApply || !selectedColumn || isDisabled) return;
+
+    onApplyFilter({
+      column: filterColumn,
+      operator: filterOperator,
+      value: filterValue.trim(),
+      dataType: selectedColumn.dataType ?? 'string',
+    });
+  }, [
+    canApply,
+    filterColumn,
+    filterOperator,
+    filterValue,
+    selectedColumn,
+    onApplyFilter,
+    isDisabled,
+  ]);
+
+  const handleClear = useCallback(() => {
+    setFilterColumn('');
+    setFilterOperator('eq');
+    setFilterValue('');
+    onClearFilters();
+  }, [onClearFilters]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' && canApply && !isDisabled) {
+        handleApply();
+      }
+    },
+    [canApply, handleApply, isDisabled]
+  );
+
+  // Render value input based on data type
+  const renderValueInput = () => {
     if (!selectedColumn) {
       return (
         <input
           type="text"
           disabled
           placeholder="Select column first"
-          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+          className={styles.inputDisabled}
         />
       );
     }
 
-    const baseProps = {
+    const commonProps = {
       value: filterValue,
       onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
         setFilterValue(e.target.value),
-      className:
-        'px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400',
+      onKeyDown: handleKeyDown,
+      disabled: isDisabled,
+      className: styles.input,
     };
 
     switch (selectedColumn.dataType) {
       case 'boolean':
         return (
-          <select {...baseProps}>
+          <select {...commonProps} className={styles.select}>
             <option value="">Select value</option>
             <option value="true">True</option>
             <option value="false">False</option>
           </select>
         );
       case 'date':
-        return <input {...baseProps} type="date" />;
+        return <input {...commonProps} type="date" />;
       case 'datetime':
-        return <input {...baseProps} type="datetime-local" />;
+        return <input {...commonProps} type="datetime-local" />;
       case 'number':
-        return <input {...baseProps} type="number" placeholder="Enter number" />;
+        return <input {...commonProps} type="number" placeholder="Enter number" />;
       default:
-        return <input {...baseProps} type="text" placeholder="Enter value" />;
+        return <input {...commonProps} type="text" placeholder="Enter value" />;
     }
   };
-
-  const handleApplyFilter = () => {
-    if (!filterColumn || !filterValue.trim()) return;
-
-    onAddFilter({
-      column: filterColumn,
-      operator: filterOperator,
-      value: filterValue.trim(),
-      dataType: selectedColumn?.dataType || 'string',
-    });
-
-    // DON'T reset the form - keep the values so user can modify and reapply
-  };
-
-  const handleClearfilter = () => {
-    setFilterColumn('');
-    setFilterOperator('eq');
-    setFilterValue('');
-    onClearFilters();
-  };
-
-  const canApplyFilter = filterColumn && filterValue.trim();
 
   return (
     <div className="space-y-4">
@@ -119,17 +234,12 @@ export const FilterControls = <T,>({
       <div className="flex flex-wrap gap-4 items-end">
         {/* Column Selector */}
         <div className="min-w-40">
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Column
-          </label>
+          <label className={styles.label}>Column</label>
           <select
             value={filterColumn}
-            onChange={(e) => {
-              setFilterColumn(e.target.value);
-              setFilterOperator('eq');
-              setFilterValue('');
-            }}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+            onChange={(e) => handleColumnChange(e.target.value)}
+            disabled={isDisabled}
+            className={styles.select}
           >
             <option value="">Select Column</option>
             {filterableColumns.map((col) => (
@@ -142,16 +252,14 @@ export const FilterControls = <T,>({
 
         {/* Operator Selector */}
         <div className="min-w-32">
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Operator
-          </label>
+          <label className={styles.label}>Operator</label>
           <select
             value={filterOperator}
-            onChange={(e) => setFilterOperator(e.target.value)}
-            disabled={!filterColumn}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400 disabled:cursor-not-allowed"
+            onChange={(e) => setFilterOperator(e.target.value as FilterOperator)}
+            disabled={isDisabled || !filterColumn}
+            className={styles.select}
           >
-            {getOperatorOptions().map((op) => (
+            {operatorOptions.map((op) => (
               <option key={op.value} value={op.value}>
                 {op.label}
               </option>
@@ -161,25 +269,21 @@ export const FilterControls = <T,>({
 
         {/* Value Input */}
         <div className="min-w-40">
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Value
-          </label>
-          {renderFilterInput()}
+          <label className={styles.label}>Value</label>
+          {renderValueInput()}
         </div>
 
         {/* Action Buttons */}
         <div className="flex gap-2">
           <button
-            onClick={handleApplyFilter}
-            disabled={!canApplyFilter}
-            className="px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white text-sm rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:text-gray-500 dark:disabled:text-gray-400 disabled:cursor-not-allowed transition-colors duration-150"
+            onClick={handleApply}
+            disabled={isDisabled || !canApply}
+            className={styles.buttonPrimary}
           >
-            Apply Filter
+            {filterLoading && <Spinner className="w-4 h-4" />}
+            {filterLoading ? 'Applying...' : 'Apply Filter'}
           </button>
-          <button
-            onClick={handleClearfilter}
-            className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 transition-colors duration-150"
-          >
+          <button onClick={handleClear} disabled={isDisabled} className={styles.buttonSecondary}>
             Clear All
           </button>
         </div>
@@ -190,14 +294,13 @@ export const FilterControls = <T,>({
         <div className="flex flex-wrap gap-2 items-center">
           <span className="text-sm text-gray-600 dark:text-gray-400">Active filters:</span>
           {activeFilters.map((filter, index) => (
-            <span
-              key={index}
-              className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-full text-sm"
-            >
+            <span key={`${filter.column}-${index}`} className={styles.filterTag}>
               {filter.label}
               <button
                 onClick={() => onRemoveFilter(index)}
-                className="ml-1 text-blue-600 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-100 focus:outline-none transition-colors duration-150"
+                disabled={isDisabled}
+                className={styles.filterTagRemove}
+                aria-label={`Remove filter: ${filter.label}`}
               >
                 ×
               </button>

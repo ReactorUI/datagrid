@@ -1,3 +1,5 @@
+// File: src/components/DataGrid/DataGrid.events.test.tsx
+
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
@@ -70,13 +72,7 @@ describe('DataGrid Events', () => {
 
   it('calls onTableRefresh when refresh button is clicked', async () => {
     const onTableRefresh = jest.fn();
-    render(
-      <DataGrid
-        data={testData}
-        enableRefresh={true} // ✅ FIXED: Explicitly enable refresh
-        onTableRefresh={onTableRefresh}
-      />
-    );
+    render(<DataGrid data={testData} enableRefresh={true} onTableRefresh={onTableRefresh} />);
 
     const refreshButton = screen.getByTitle(/refresh data/i);
     fireEvent.click(refreshButton);
@@ -268,6 +264,203 @@ describe('DataGrid Events', () => {
     await waitFor(() => {
       const deleteButton = screen.getByTitle(/delete 1 selected item/i);
       expect(deleteButton).toHaveTextContent('(1 selected)');
+    });
+  });
+});
+
+// =============================================================================
+// Filter Callback Tests (NEW)
+// =============================================================================
+
+describe('DataGrid Filter Callbacks', () => {
+  it('calls onApplyFilter when Apply Filter button is clicked', async () => {
+    const onApplyFilter = jest.fn();
+    render(<DataGrid data={testData} enableFilters={true} onApplyFilter={onApplyFilter} />);
+
+    // Select a column - first combobox in the filter section
+    const selects = screen.getAllByRole('combobox');
+    const columnSelect = selects[0]; // Column select
+    fireEvent.change(columnSelect, { target: { value: 'name' } });
+
+    // Enter a value
+    const valueInput = screen.getByPlaceholderText('Enter value');
+    fireEvent.change(valueInput, { target: { value: 'John' } });
+
+    // Click Apply Filter
+    const applyButton = screen.getByRole('button', { name: /apply filter/i });
+    fireEvent.click(applyButton);
+
+    await waitFor(() => {
+      expect(onApplyFilter).toHaveBeenCalledWith(
+        expect.objectContaining({
+          column: 'name',
+          operator: 'eq',
+          value: 'John',
+        }),
+        expect.any(Array)
+      );
+    });
+  });
+
+  it('calls onFilterChange when filters change', async () => {
+    const onFilterChange = jest.fn();
+    render(<DataGrid data={testData} enableFilters={true} onFilterChange={onFilterChange} />);
+
+    // Select a column
+    const selects = screen.getAllByRole('combobox');
+    fireEvent.change(selects[0], { target: { value: 'email' } });
+
+    // Enter a value
+    const valueInput = screen.getByPlaceholderText('Enter value');
+    fireEvent.change(valueInput, { target: { value: 'test' } });
+
+    // Click Apply Filter
+    const applyButton = screen.getByRole('button', { name: /apply filter/i });
+    fireEvent.click(applyButton);
+
+    await waitFor(() => {
+      expect(onFilterChange).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            column: 'email',
+            value: 'test',
+          }),
+        ])
+      );
+    });
+  });
+
+  it('calls onClearFilters when Clear All is clicked', async () => {
+    const onClearFilters = jest.fn();
+    const onFilterChange = jest.fn();
+    render(
+      <DataGrid
+        data={testData}
+        enableFilters={true}
+        onClearFilters={onClearFilters}
+        onFilterChange={onFilterChange}
+      />
+    );
+
+    // First add a filter
+    const selects = screen.getAllByRole('combobox');
+    fireEvent.change(selects[0], { target: { value: 'name' } });
+
+    const valueInput = screen.getByPlaceholderText('Enter value');
+    fireEvent.change(valueInput, { target: { value: 'John' } });
+
+    const applyButton = screen.getByRole('button', { name: /apply filter/i });
+    fireEvent.click(applyButton);
+
+    // Now clear all
+    const clearButton = screen.getByRole('button', { name: /clear all/i });
+    fireEvent.click(clearButton);
+
+    await waitFor(() => {
+      expect(onClearFilters).toHaveBeenCalled();
+      expect(onFilterChange).toHaveBeenLastCalledWith([]);
+    });
+  });
+
+  it('calls onRemoveFilter when filter tag is removed', async () => {
+    const onRemoveFilter = jest.fn();
+    render(<DataGrid data={testData} enableFilters={true} onRemoveFilter={onRemoveFilter} />);
+
+    // Add a filter first
+    const selects = screen.getAllByRole('combobox');
+    fireEvent.change(selects[0], { target: { value: 'name' } });
+
+    const valueInput = screen.getByPlaceholderText('Enter value');
+    fireEvent.change(valueInput, { target: { value: 'John' } });
+
+    const applyButton = screen.getByRole('button', { name: /apply filter/i });
+    fireEvent.click(applyButton);
+
+    // Wait for filter tag to appear
+    await waitFor(() => {
+      expect(screen.getByText(/active filters/i)).toBeInTheDocument();
+    });
+
+    // Find and click the remove button on the filter tag
+    const removeButton = screen.getByRole('button', { name: /remove filter/i });
+    fireEvent.click(removeButton);
+
+    await waitFor(() => {
+      expect(onRemoveFilter).toHaveBeenCalledWith(
+        expect.objectContaining({ column: 'name' }),
+        [] // remaining filters
+      );
+    });
+  });
+
+  it('displays active filter tags', async () => {
+    render(<DataGrid data={testData} enableFilters={true} />);
+
+    // Add a filter
+    const selects = screen.getAllByRole('combobox');
+    fireEvent.change(selects[0], { target: { value: 'name' } });
+
+    const valueInput = screen.getByPlaceholderText('Enter value');
+    fireEvent.change(valueInput, { target: { value: 'John' } });
+
+    const applyButton = screen.getByRole('button', { name: /apply filter/i });
+    fireEvent.click(applyButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(/active filters/i)).toBeInTheDocument();
+      expect(screen.getByText(/name eq "John"/i)).toBeInTheDocument();
+    });
+  });
+
+  it('filters data client-side when filter is applied', async () => {
+    render(<DataGrid data={testData} enableFilters={true} />);
+
+    // Initially both rows visible
+    expect(screen.getByText('John Doe')).toBeInTheDocument();
+    expect(screen.getByText('Jane Smith')).toBeInTheDocument();
+
+    // Add a filter for "John"
+    const selects = screen.getAllByRole('combobox');
+    fireEvent.change(selects[0], { target: { value: 'name' } });
+
+    // Change operator to "contains"
+    fireEvent.change(selects[1], { target: { value: 'contains' } });
+
+    const valueInput = screen.getByPlaceholderText('Enter value');
+    fireEvent.change(valueInput, { target: { value: 'John' } });
+
+    const applyButton = screen.getByRole('button', { name: /apply filter/i });
+    fireEvent.click(applyButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('John Doe')).toBeInTheDocument();
+      expect(screen.queryByText('Jane Smith')).not.toBeInTheDocument();
+    });
+  });
+});
+
+// =============================================================================
+// Page Size Change Tests
+// =============================================================================
+
+describe('DataGrid Page Size', () => {
+  it('calls onPageSizeChange when page size is changed', async () => {
+    const onPageSizeChange = jest.fn();
+    render(
+      <DataGrid
+        data={testData}
+        pageSize={5}
+        enableFilters={false}
+        onPageSizeChange={onPageSizeChange}
+      />
+    );
+
+    // Find the page size select by its current value
+    const pageSizeSelect = screen.getByDisplayValue('5');
+    fireEvent.change(pageSizeSelect, { target: { value: '10' } });
+
+    await waitFor(() => {
+      expect(onPageSizeChange).toHaveBeenCalledWith(10);
     });
   });
 });

@@ -1,12 +1,16 @@
+// File: src/types/index.ts
+
 import { ReactNode, HTMLAttributes } from 'react';
 
-// Base data types
+// ============================================================================
+// Core Data Types
+// ============================================================================
+
 export interface BaseRowData {
   id?: string | number;
   [key: string]: any;
 }
 
-// Column configuration (unchanged)
 export interface Column<T = BaseRowData> {
   key: keyof T | string;
   label: string;
@@ -20,22 +24,38 @@ export interface Column<T = BaseRowData> {
   render?: (value: any, row: T, index: number) => ReactNode;
 }
 
-// Filter types (unchanged)
+// ============================================================================
+// Filter Types
+// ============================================================================
+
+export type FilterOperator =
+  | 'eq'
+  | 'neq' // All types
+  | 'contains'
+  | 'startsWith'
+  | 'endsWith' // String
+  | 'gt'
+  | 'gte'
+  | 'lt'
+  | 'lte'; // Number/Date
+
 export interface ActiveFilter {
   column: string;
-  operator: string;
+  operator: FilterOperator | string;
   value: any;
   dataType: string;
   label: string;
 }
 
-// Sort configuration (unchanged)
+// ============================================================================
+// Sort & Pagination
+// ============================================================================
+
 export interface SortConfig {
   column: string;
   direction: 'asc' | 'desc';
 }
 
-// Simplified pagination info
 export interface PaginationInfo {
   currentPage: number;
   totalPages: number;
@@ -45,46 +65,47 @@ export interface PaginationInfo {
   end: number;
   hasNext: boolean;
   hasPrevious: boolean;
-  continuationToken?: string;
 }
 
-// Simplified server request (no sorting - that's client-side only)
-export interface ServerRequest {
-  page: number;
-  pageSize: number;
-  search: string;
-  filters: ActiveFilter[];
-  continuationToken?: string;
+// ============================================================================
+// Loading State - Granular control
+// ============================================================================
+
+export interface LoadingState {
+  /** Data is being fetched (shows table skeleton, disables all controls) */
+  data?: boolean;
+  /** Filter is being applied */
+  filter?: boolean;
+  /** Search is being executed */
+  search?: boolean;
+  /** Refresh is in progress */
+  refresh?: boolean;
+  /** Delete operation is in progress */
+  delete?: boolean;
 }
 
-// Simplified server response - exactly what you specified
-export interface ServerResponse<T = BaseRowData> {
-  Items: T[];
-  ContinuationToken?: string;
-  HasMore: boolean;
-  Count: number;
-}
+// ============================================================================
+// Event Callback Types
+// ============================================================================
 
-// HTTP configuration (unchanged)
-export interface HttpConfig {
-  bearerToken?: string;
-  apiKey?: string;
-  customHeaders?: Record<string, string>;
-  method?: 'GET' | 'POST';
-  postDataFormat?: 'form' | 'json';
-  withCredentials?: boolean;
-  timeout?: number;
-}
-
-// Event callback types (keeping existing ones, simplified)
-export type OnDataLoadCallback<T = BaseRowData> = (data: ServerResponse<T>) => void;
-export type OnDataErrorCallback = (error: Error, context: string) => void;
-export type OnLoadingStateChangeCallback = (loading: boolean, context: string) => void;
+// Pagination Events
 export type OnPageChangeCallback = (page: number, paginationInfo: PaginationInfo) => void;
-export type OnPageSizeChangeCallback = (pageSize: number, paginationInfo: PaginationInfo) => void;
+export type OnPageSizeChangeCallback = (pageSize: number) => void;
+
+// Sort & Filter Events
 export type OnSortChangeCallback = (sortConfig: SortConfig) => void;
-export type OnFilterChangeCallback = (filters: ActiveFilter[]) => void;
 export type OnSearchChangeCallback = (searchTerm: string) => void;
+
+// Filter Events - Separate callbacks for filter actions
+export type OnApplyFilterCallback = (filter: ActiveFilter, allFilters: ActiveFilter[]) => void;
+export type OnRemoveFilterCallback = (
+  removedFilter: ActiveFilter,
+  remainingFilters: ActiveFilter[]
+) => void;
+export type OnClearFiltersCallback = () => void;
+export type OnFilterChangeCallback = (filters: ActiveFilter[]) => void;
+
+// Row & Cell Events
 export type OnTableRowClickCallback<T = BaseRowData> = (row: T, event: React.MouseEvent) => void;
 export type OnTableRowDoubleClickCallback<T = BaseRowData> = (
   row: T,
@@ -102,56 +123,128 @@ export type OnCellClickCallback<T = BaseRowData> = (
   column: Column<T>,
   event: React.MouseEvent
 ) => void;
-export type OnTableRefreshCallback = () => void;
+
+// Action Events
+export type OnRefreshCallback = () => void;
 export type OnBulkDeleteCallback<T = BaseRowData> = (selectedRows: T[]) => void;
 
-// Simplified component props
+// ============================================================================
+// Component Props - Clean, Presentation-Focused
+// ============================================================================
+
 export interface DataGridProps<T = BaseRowData>
   extends Omit<HTMLAttributes<HTMLDivElement>, 'onError'> {
-  // Data
-  data?: T[];
-  endpoint?: string;
+  // ===== DATA (Required) =====
+  /** The data array to display - parent is responsible for fetching/filtering */
+  data: T[];
+
+  // ===== COLUMN CONFIGURATION =====
+  /** Column definitions - auto-detected if not provided */
   columns?: Column<T>[];
 
-  // Features
+  // ===== LOADING STATE =====
+  /**
+   * Granular loading states for different actions.
+   * @example { data: true } - Shows table skeleton
+   * @example { filter: true } - Shows spinner on Apply Filter button
+   * @example { refresh: true } - Shows spinner on Refresh button
+   */
+  loadingState?: LoadingState;
+
+  /**
+   * Simple loading flag - sets loadingState.data = true.
+   * Use this OR loadingState, not both.
+   * @deprecated Prefer loadingState for granular control
+   */
+  loading?: boolean;
+
+  // ===== EXTERNAL STATE (for server-side scenarios) =====
+  /** Total records for pagination display (server-side) */
+  totalRecords?: number;
+  /** Whether more data is available (server-side) */
+  hasMore?: boolean;
+  /** Error message to display */
+  error?: string | null;
+
+  // ===== FEATURE TOGGLES =====
   enableSearch?: boolean;
   enableSorting?: boolean;
   enableFilters?: boolean;
   enableSelection?: boolean;
   enableDelete?: boolean;
+  enableRefresh?: boolean;
   deleteConfirmation?: boolean;
 
-  // Pagination
+  // ===== PAGINATION =====
   pageSize?: number;
-  serverPageSize?: number;
   pageSizeOptions?: number[];
+  /** Current page (controlled mode for server-side) */
+  currentPage?: number;
 
-  // UI Control
-  enableRefresh?: boolean;
+  // ===== LAYOUT =====
+  /**
+   * Set a max height for the grid - enables scrollable table body.
+   * Can be any CSS value: '400px', '50vh', 'calc(100vh - 200px)'
+   */
+  maxHeight?: string | number;
+  /**
+   * Keep table header visible while scrolling (sticky header).
+   * Automatically enabled when maxHeight is set.
+   */
+  stickyHeader?: boolean;
 
-  // HTTP
-  httpConfig?: HttpConfig;
-
-  // Styling
+  // ===== STYLING =====
   className?: string;
   variant?: 'default' | 'striped' | 'bordered';
   size?: 'sm' | 'md' | 'lg';
 
-  // Event callbacks
-  onDataLoad?: OnDataLoadCallback<T>;
-  onDataError?: OnDataErrorCallback;
-  onLoadingStateChange?: OnLoadingStateChangeCallback;
+  // ===== PAGINATION EVENTS =====
   onPageChange?: OnPageChangeCallback;
   onPageSizeChange?: OnPageSizeChangeCallback;
+
+  // ===== SORT & SEARCH EVENTS =====
   onSortChange?: OnSortChangeCallback;
-  onFilterChange?: OnFilterChangeCallback;
   onSearchChange?: OnSearchChangeCallback;
-  onTableRefresh?: OnTableRefreshCallback;
+
+  // ===== FILTER EVENTS (Enhanced) =====
+  /** Called when Apply Filter button is clicked */
+  onApplyFilter?: OnApplyFilterCallback;
+  /** Called when a filter tag is removed */
+  onRemoveFilter?: OnRemoveFilterCallback;
+  /** Called when Clear All is clicked */
+  onClearFilters?: OnClearFiltersCallback;
+  /** Called whenever filters change (convenience callback) */
+  onFilterChange?: OnFilterChangeCallback;
+
+  // ===== ROW & CELL EVENTS =====
   onTableRowClick?: OnTableRowClickCallback<T>;
   onTableRowDoubleClick?: OnTableRowDoubleClickCallback<T>;
   onRowSelect?: OnRowSelectCallback<T>;
   onSelectionChange?: OnSelectionChangeCallback<T>;
   onTableRowHover?: OnTableRowHoverCallback<T>;
   onCellClick?: OnCellClickCallback<T>;
+
+  // ===== ACTION EVENTS =====
+  onTableRefresh?: OnRefreshCallback;
   onBulkDelete?: OnBulkDeleteCallback<T>;
+}
+
+// ============================================================================
+// Utility Types for External Use
+// ============================================================================
+
+/** Request object that parent can use to build API calls */
+export interface DataGridRequest {
+  page: number;
+  pageSize: number;
+  search: string;
+  filters: ActiveFilter[];
+  sort: SortConfig;
+}
+
+/** Helper type for building API responses */
+export interface DataGridResponse<T = BaseRowData> {
+  items: T[];
+  totalRecords: number;
+  hasMore?: boolean;
 }

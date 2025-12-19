@@ -1,3 +1,5 @@
+// File: src/components/Table/TableHeader.tsx
+
 import React from 'react';
 import { Column, SortConfig } from '../../types';
 import { Theme } from '../../themes';
@@ -11,6 +13,7 @@ interface TableHeaderProps<T> {
   totalCount: number;
   onSelectAll?: (selected: boolean) => void;
   theme: Theme;
+  sticky?: boolean;
 }
 
 export const TableHeader = <T,>({
@@ -22,6 +25,7 @@ export const TableHeader = <T,>({
   totalCount,
   onSelectAll,
   theme,
+  sticky = false,
 }: TableHeaderProps<T>) => {
   const getSortIcon = (columnKey: string) => {
     if (sortConfig.column !== columnKey) {
@@ -67,8 +71,11 @@ export const TableHeader = <T,>({
     );
   };
 
+  // Sticky styles
+  const stickyClass = sticky ? 'sticky top-0 z-10' : '';
+
   return (
-    <thead className={theme.header}>
+    <thead className={`${theme.header} ${stickyClass}`}>
       <tr>
         {enableSelection && (
           <th

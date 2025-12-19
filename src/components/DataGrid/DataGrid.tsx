@@ -1,59 +1,128 @@
+// File: src/components/DataGrid/DataGrid.tsx
+
 import React, { useMemo, useCallback } from 'react';
-import { DataGridProps, Column } from '../../types';
+import { DataGridProps, Column, LoadingState } from '../../types';
 import { useDataGrid } from '../../hooks';
 import { SearchInput } from '../Search';
 import { FilterControls } from '../Filter';
 import { TableHeader, TableBody } from '../Table';
 import { getTheme } from '../../themes';
+import { inferDataType } from '../../utils';
+
+// ============================================================================
+// Spinner Component (reusable)
+// ============================================================================
+
+const Spinner: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
+  <svg
+    className={`animate-spin ${className}`}
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+  >
+    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+    <path
+      className="opacity-75"
+      fill="currentColor"
+      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+    />
+  </svg>
+);
+
+// ============================================================================
+// Main Component
+// ============================================================================
 
 export const DataGrid = <T extends { [key: string]: any } = any>({
+  // Data
   data,
-  endpoint,
   columns: columnsProp = [],
+
+  // Loading states
+  loading: simpleLoading = false,
+  loadingState: externalLoadingState,
+
+  // External state (controlled mode)
+  totalRecords: externalTotalRecords,
+  error: externalError,
+  currentPage: externalCurrentPage,
+
+  // Features
   enableSearch = true,
   enableSorting = true,
   enableFilters = true,
   enableSelection = true,
   enableDelete = false,
+  enableRefresh = false,
   deleteConfirmation = false,
+
+  // Layout
+  maxHeight,
+  stickyHeader = false,
+
+  // Pagination
   pageSize = 10,
-  serverPageSize = 100,
   pageSizeOptions = [5, 10, 25, 50, 100],
-  httpConfig,
+
+  // Styling
   variant = 'default',
   size = 'md',
   className = '',
-  enableRefresh = false,
 
-  // Event callbacks
-  onDataLoad,
-  onDataError,
-  onLoadingStateChange,
+  // Pagination Events
   onPageChange,
   onPageSizeChange,
+
+  // Sort & Search Events
   onSortChange,
-  onFilterChange,
   onSearchChange,
-  onTableRefresh,
+
+  // Filter Events
+  onApplyFilter,
+  onRemoveFilter,
+  onClearFilters,
+  onFilterChange,
+
+  // Row & Cell Events
   onTableRowClick,
   onTableRowDoubleClick,
   onRowSelect,
   onSelectionChange,
   onTableRowHover,
   onCellClick,
+
+  // Action Events
+  onTableRefresh,
   onBulkDelete,
 
   ...rest
 }: DataGridProps<T>) => {
   const theme = getTheme(variant);
 
+  // ===== Normalize Loading State =====
+  // If simple `loading` is passed, convert to loadingState.data
+  // If loadingState is passed, use it directly
+  const loadingState: LoadingState = useMemo(() => {
+    if (externalLoadingState) return externalLoadingState;
+    if (simpleLoading) return { data: true };
+    return {};
+  }, [externalLoadingState, simpleLoading]);
+
+  // Destructure for convenience
+  const isDataLoading = loadingState.data ?? false;
+  const isFilterLoading = loadingState.filter ?? false;
+  const isSearchLoading = loadingState.search ?? false;
+  const isRefreshLoading = loadingState.refresh ?? false;
+  const isDeleteLoading = loadingState.delete ?? false;
+
+  // Any loading state disables controls
+  const isAnyLoading =
+    isDataLoading || isFilterLoading || isSearchLoading || isRefreshLoading || isDeleteLoading;
+
   // Use the data grid hook
   const {
-    data: sourceData,
     processedData,
     paginatedData,
-    loading,
-    error,
     searchTerm,
     activeFilters,
     sortConfig,
@@ -62,6 +131,7 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
     currentPageSize,
     setSearchTerm,
     setSort,
+    setCurrentPage,
     setCurrentPageSize,
     navigateNext,
     navigatePrevious,
@@ -73,29 +143,29 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
     paginationInfo,
     selectedData,
     refresh,
-    getRowId, // Get the stable ID generator
+    getRowId,
   } = useDataGrid({
     data,
-    endpoint,
-    httpConfig,
     pageSize,
-    serverPageSize,
-    onDataLoad,
-    onDataError,
-    onLoadingStateChange,
+    totalRecords: externalTotalRecords,
+    currentPage: externalCurrentPage,
+    loading: isDataLoading,
     onPageChange,
     onPageSizeChange,
     onSortChange,
-    onFilterChange,
     onSearchChange,
+    onApplyFilter,
+    onRemoveFilter,
+    onClearFilters,
+    onFilterChange,
   });
 
   // Auto-detect columns if not provided
   const columns = useMemo<Column<T>[]>(() => {
     if (columnsProp.length > 0) return columnsProp;
 
-    if (sourceData.length > 0) {
-      const firstRow = sourceData[0];
+    if (data.length > 0) {
+      const firstRow = data[0];
       return Object.keys(firstRow).map((key) => ({
         key,
         label: key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'),
@@ -106,20 +176,11 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
     }
 
     return [];
-  }, [columnsProp, sourceData]);
+  }, [columnsProp, data]);
 
-  // Memoize the selection change handler
-  const handleSelectionChange = useCallback(
-    (newSelectedData: T[]) => {
-      onSelectionChange?.(newSelectedData);
-    },
-    [onSelectionChange]
-  );
-
-  // Use a ref to track previous selectedData to avoid unnecessary calls
+  // Selection change effect
   const previousSelectedData = React.useRef<T[]>([]);
 
-  // Only call onSelectionChange when selectedData actually changes
   React.useLayoutEffect(() => {
     const hasChanged =
       selectedData.length !== previousSelectedData.current.length ||
@@ -127,22 +188,22 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
 
     if (hasChanged && onSelectionChange) {
       previousSelectedData.current = selectedData;
-      handleSelectionChange(selectedData);
+      onSelectionChange(selectedData);
     }
-  }, [selectedData, handleSelectionChange]);
+  }, [selectedData, onSelectionChange]);
 
   // Handle row selection with callback
   const handleRowSelect = useCallback(
     (rowId: string, selected: boolean) => {
       selectRow(rowId, selected);
       if (onRowSelect) {
-        const row = sourceData.find((r) => getRowId(r) === rowId);
+        const row = data.find((r) => getRowId(r) === rowId);
         if (row) {
           onRowSelect(row, selected);
         }
       }
     },
-    [selectRow, onRowSelect, sourceData, getRowId]
+    [selectRow, onRowSelect, data, getRowId]
   );
 
   // Handle delete action
@@ -172,12 +233,16 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
     onTableRefresh?.();
   }, [refresh, onTableRefresh]);
 
-  if (error) {
+  // Determine if fixed layout is enabled
+  const hasFixedLayout = maxHeight !== undefined || stickyHeader;
+
+  // Error state
+  if (externalError) {
     return (
       <div className={`${theme.container} ${className}`} {...rest}>
         <div className="px-4 py-8 text-center">
           <div className="text-red-600 dark:text-red-400 mb-2">Error loading data</div>
-          <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">{error}</div>
+          <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">{externalError}</div>
           <button onClick={handleRefresh} className={theme.button}>
             Try Again
           </button>
@@ -187,35 +252,37 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
   }
 
   return (
-    <div className={`${theme.container} ${className}`} {...rest}>
-      {/* Row 1: Filters */}
+    <div
+      className={`${theme.container} ${className} ${hasFixedLayout ? 'flex flex-col' : ''}`}
+      style={hasFixedLayout && maxHeight ? { height: maxHeight } : undefined}
+      {...rest}
+    >
+      {/* Row 1: Filters - Fixed at top when scrollable */}
       {enableFilters && (
-        <div className="p-4 pb-2">
-          <div className="flex justify-between items-start gap-4">
-            {/* Filters on the left */}
-            <div className="flex-1">
-              <FilterControls
-                columns={columns}
-                activeFilters={activeFilters}
-                onAddFilter={addFilter}
-                onRemoveFilter={removeFilter}
-                onClearFilters={clearFilters}
-              />
-            </div>
-          </div>
+        <div className="p-4 pb-2 flex-shrink-0">
+          <FilterControls
+            columns={columns}
+            activeFilters={activeFilters}
+            onApplyFilter={addFilter}
+            onRemoveFilter={removeFilter}
+            onClearFilters={clearFilters}
+            disabled={isDataLoading}
+            filterLoading={isFilterLoading}
+          />
         </div>
       )}
 
-      {/* Row 2: Page Size Selector + Search Input + Refresh + Delete Button */}
-      <div className="px-4 pb-4">
+      {/* Row 2: Controls - Fixed at top when scrollable */}
+      <div className="px-4 pb-4 flex-shrink-0">
         <div className="flex justify-between items-center gap-4">
-          {/* Show X entries on the left */}
+          {/* Show X entries */}
           <div className="flex items-center gap-2 flex-shrink-0">
             <span className="text-sm text-gray-700 dark:text-gray-300">Show</span>
             <select
               value={currentPageSize}
               onChange={(e) => setCurrentPageSize(parseInt(e.target.value))}
-              className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+              disabled={isAnyLoading}
+              className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:opacity-50"
             >
               {pageSizeOptions.map((size) => (
                 <option key={size} value={size}>
@@ -226,33 +293,37 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
             <span className="text-sm text-gray-700 dark:text-gray-300">entries</span>
           </div>
 
-          {/* Search input, Refresh and Delete button on the right */}
+          {/* Search, Refresh, Delete */}
           <div className="flex items-center gap-2 flex-shrink-0">
             {enableSearch && (
-              <div className="w-64">
+              <div className="w-64 relative">
                 <SearchInput
                   value={searchTerm}
                   onChange={setSearchTerm}
                   placeholder="Search..."
-                  disabled={loading}
+                  disabled={isAnyLoading}
                   className={theme.searchInput}
                 />
+                {isSearchLoading && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <Spinner className="w-4 h-4 text-gray-400" />
+                  </div>
+                )}
               </div>
             )}
 
             {enableRefresh && (
               <button
                 onClick={handleRefresh}
-                disabled={loading}
-                title={loading ? 'Loading...' : 'Refresh data'}
+                disabled={isAnyLoading}
+                title={isRefreshLoading ? 'Refreshing...' : 'Refresh data'}
                 className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors duration-150 flex items-center justify-center"
               >
                 <svg
-                  className="w-4 h-4"
+                  className={`w-4 h-4 ${isRefreshLoading ? 'animate-spin' : ''}`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
                 >
                   <path
                     strokeLinecap="round"
@@ -267,34 +338,36 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
             {enableDelete && enableSelection && (
               <button
                 onClick={handleDelete}
-                disabled={selectedRows.size === 0}
+                disabled={selectedRows.size === 0 || isAnyLoading}
                 title={
                   selectedRows.size === 0
                     ? 'Select rows to delete'
-                    : `Delete ${selectedRows.size} selected item${selectedRows.size === 1 ? '' : 's'}`
+                    : isDeleteLoading
+                      ? 'Deleting...'
+                      : `Delete ${selectedRows.size} selected item${selectedRows.size === 1 ? '' : 's'}`
                 }
                 className={`px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 transition-colors duration-150 flex items-center gap-1 ${
-                  selectedRows.size === 0
+                  selectedRows.size === 0 || isAnyLoading
                     ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                     : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 cursor-pointer'
                 }`}
               >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
+                {isDeleteLoading ? (
+                  <Spinner className="w-4 h-4" />
+                ) : (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                )}
                 {selectedRows.size > 0 && (
-                  <span className="text-sm">({selectedRows.size} selected)</span>
+                  <span className="text-sm">
+                    {isDeleteLoading ? 'Deleting...' : `(${selectedRows.size} selected)`}
+                  </span>
                 )}
               </button>
             )}
@@ -302,8 +375,12 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
         </div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto">
+      {/* Table Container - Scrollable when fixed layout */}
+      <div
+        className={`
+          ${hasFixedLayout ? 'flex-1 overflow-auto min-h-0' : 'overflow-x-auto'}
+        `}
+      >
         <table className={theme.table}>
           <TableHeader
             columns={columns}
@@ -314,6 +391,7 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
             totalCount={paginatedData.length}
             onSelectAll={enableSelection ? selectAll : undefined}
             theme={theme}
+            sticky={hasFixedLayout}
           />
           <TableBody
             columns={columns}
@@ -325,26 +403,24 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
             onRowHover={onTableRowHover}
             onCellClick={onCellClick}
             enableSelection={enableSelection}
-            loading={loading}
+            loading={isDataLoading}
             theme={theme}
-            getRowId={getRowId} // Pass the stable ID generator
+            getRowId={getRowId}
           />
         </table>
       </div>
 
-      {/* Bottom Row: Records Info + Navigation */}
-      <div className={theme.pagination}>
-        {/* Records info on the left */}
+      {/* Pagination - Fixed at bottom when scrollable */}
+      <div className={`${theme.pagination} flex-shrink-0`}>
         <div className="text-sm text-gray-700 dark:text-gray-300 flex-shrink-0">
           Showing {paginationInfo.start}-{paginationInfo.end} of{' '}
           {paginationInfo.totalRecords.toLocaleString()} records
         </div>
 
-        {/* Navigation controls on the right */}
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
             onClick={navigatePrevious}
-            disabled={!paginationInfo.hasPrevious}
+            disabled={!paginationInfo.hasPrevious || isAnyLoading}
             className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
           >
             Previous
@@ -356,7 +432,7 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
 
           <button
             onClick={navigateNext}
-            disabled={!paginationInfo.hasNext}
+            disabled={!paginationInfo.hasNext || isAnyLoading}
             className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
           >
             Next
@@ -366,20 +442,3 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
     </div>
   );
 };
-
-// Helper function to infer data type
-function inferDataType(value: any): 'string' | 'number' | 'boolean' | 'date' | 'datetime' {
-  if (value == null) return 'string';
-  if (typeof value === 'boolean') return 'boolean';
-  if (typeof value === 'number') return 'number';
-
-  if (typeof value === 'string') {
-    // Try to detect dates
-    const dateValue = new Date(value);
-    if (!isNaN(dateValue.getTime()) && dateValue.getFullYear() > 1900) {
-      return value.includes('T') || value.includes(' ') ? 'datetime' : 'date';
-    }
-  }
-
-  return 'string';
-}

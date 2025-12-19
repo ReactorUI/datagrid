@@ -4,7 +4,7 @@
 [![npm version](https://img.shields.io/npm/v/@reactorui/datagrid)](https://www.npmjs.com/package/@reactorui/datagrid)
 [![license](https://img.shields.io/npm/l/@reactorui/datagrid)](https://github.com/your-org/datagrid/blob/main/LICENSE)
 
-A high-performance, feature-rich React data grid component with TypeScript support, server-side integration, pagination and advanced filtering capabilities.
+A high-performance, feature-rich React data grid component with TypeScript support, pagination, and advanced filtering capabilities. Designed as a **controlled presentation component** for maximum flexibility.
 
 ## 🖼️ Screenshots
 
@@ -18,16 +18,17 @@ A high-performance, feature-rich React data grid component with TypeScript suppo
 
 ## ✨ Features
 
-- 🚀 **High Performance** - Optimized rendering and data processing
+- 🚀 **High Performance** - Optimized rendering with memoization
 - 🔍 **Advanced Filtering** - Type-aware filters with multiple operators (string, number, date, boolean)
-- 🔄 **Flexible Data Sources** - Static data or server-side with any API
+- 🔄 **Flexible Data Sources** - Works with any data fetching strategy (REST, GraphQL, local)
 - 📱 **Responsive Design** - Mobile-first with touch-friendly interactions
 - 🎨 **Customizable Theming** - Multiple built-in variants and custom styling
-- 🌙 **Dark Mode Ready** - Built-in dark mode support with CSS variables
+- 🌙 **Dark Mode Ready** - Built-in dark mode support
 - ♿ **Accessibility First** - WCAG compliant with keyboard navigation and ARIA labels
 - 🔧 **TypeScript Native** - Full type safety and comprehensive IntelliSense support
-- 🎯 **Rich Event System** - 15+ events covering every user interaction
-- 🔐 **Secure Authentication** - Bearer token, API key, and custom header support
+- 🎯 **Rich Event System** - 20+ events covering every user interaction
+- 📊 **Granular Loading States** - Action-specific loading indicators
+- 📜 **Scrollable Layout** - Fixed headers with `maxHeight` and `stickyHeader` props
 - ⚡ **Zero Dependencies** - Only React as peer dependency
 
 ## 📦 Installation
@@ -111,7 +112,7 @@ function App() {
       data={users}
       columns={columns}
       variant="bordered"
-      size="comfortable"
+      size="lg"
       enableSelection={true}
       onSelectionChange={(selected) => console.log('Selected:', selected)}
     />
@@ -119,117 +120,207 @@ function App() {
 }
 ```
 
-## 🌐 Server-Side Data
+## 🌐 Server-Side Data (Controlled Mode)
+
+The DataGrid is a **controlled presentation component**. You handle data fetching; the grid handles display.
 
 ```tsx
-import { DataGrid } from '@reactorui/datagrid';
+import { useState, useEffect } from 'react';
+import { DataGrid, LoadingState, ActiveFilter, SortConfig } from '@reactorui/datagrid';
 
-function App() {
+function ServerSideExample() {
+  const [data, setData] = useState([]);
+  const [loadingState, setLoadingState] = useState<LoadingState>({});
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch data from your API
+  const fetchData = async (page: number, filters: ActiveFilter[], search: string) => {
+    setLoadingState({ data: true });
+    setError(null);
+
+    try {
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ page, pageSize: 25, filters, search }),
+      });
+
+      const result = await response.json();
+      setData(result.items);
+      setTotalRecords(result.totalRecords);
+    } catch (err) {
+      setError('Failed to load data');
+    } finally {
+      setLoadingState({});
+    }
+  };
+
+  useEffect(() => {
+    fetchData(1, [], '');
+  }, []);
+
   return (
     <DataGrid
-      endpoint="/api/users"
-      httpConfig={{
-        bearerToken: 'your-jwt-token',
-        method: 'POST',
-        postDataFormat: 'json',
-        customHeaders: {
-          'X-Custom-Header': 'value',
-        },
-      }}
-      serverPageSize={100}
+      data={data}
+      loading={loadingState}
+      totalRecords={totalRecords}
+      currentPage={currentPage}
+      error={error}
       pageSize={25}
-      onDataLoad={(data) => console.log(`Loaded ${data.items.length} items`)}
-      onDataError={(error, context) => console.error(`Error in ${context}:`, error)}
+      // Filter callbacks - YOU handle the server call
+      onApplyFilter={(filter, allFilters) => {
+        setLoadingState({ filter: true });
+        fetchData(1, allFilters, '');
+      }}
+      onClearFilters={() => {
+        fetchData(1, [], '');
+      }}
+      onSearchChange={(term) => {
+        setLoadingState({ search: true });
+        fetchData(1, [], term);
+      }}
+      onPageChange={(page) => {
+        setCurrentPage(page);
+        fetchData(page, [], '');
+      }}
+      onTableRefresh={() => {
+        setLoadingState({ refresh: true });
+        fetchData(currentPage, [], '');
+      }}
     />
   );
 }
 ```
 
-## 🎯 Comprehensive Event System
+## 📊 Granular Loading States
 
-The DataGrid provides 15+ events covering every user interaction:
+Instead of a single `loading` boolean, use `loadingState` for action-specific feedback:
+
+```tsx
+interface LoadingState {
+  data?: boolean;     // Shows skeleton, disables all controls
+  filter?: boolean;   // Spinner on "Apply Filter" button only
+  search?: boolean;   // Spinner in search input only
+  refresh?: boolean;  // Spinner on refresh button only
+  delete?: boolean;   // Spinner on delete button only
+}
+
+// Usage
+<DataGrid
+  data={data}
+  loadingState={{ filter: true }}  // Only Apply Filter shows spinner
+/>
+
+// Backward compatible - still works
+<DataGrid data={data} loading={true} />
+```
+
+**Visual Result:**
+
+- Click "Apply Filter" → only that button shows `[⟳ Applying...]`
+- Click "Refresh" → only that button spins
+- Click "Delete" → only that button shows `[⟳ Deleting...]`
+- Initial load → table skeleton, all controls disabled
+
+## 📜 Scrollable Layout
+
+For large datasets, enable scrollable body with fixed headers:
+
+```tsx
+// Fixed pixel height
+<DataGrid data={data} maxHeight="400px" />
+
+// Viewport-relative height
+<DataGrid data={data} maxHeight="60vh" />
+
+// Dynamic height
+<DataGrid data={data} maxHeight="calc(100vh - 200px)" />
+
+// Just sticky headers (browser determines scroll)
+<DataGrid data={data} stickyHeader={true} />
+
+// Numeric value (converted to pixels)
+<DataGrid data={data} maxHeight={500} />
+```
+
+## 🎯 Event System
+
+### Filter Events (NEW)
 
 ```tsx
 <DataGrid
-  data={users}
-  // Data loading events
-  onDataLoad={(data) => {
-    console.log('Data loaded:', data.items.length);
-    hideLoadingSpinner();
+  data={data}
+  enableFilters={true}
+  // Called when "Apply Filter" is clicked
+  onApplyFilter={(filter, allFilters) => {
+    console.log('New filter:', filter);
+    console.log('All active filters:', allFilters);
+    // Make your API call here
   }}
-  onDataError={(error, context) => {
-    console.error(`Error in ${context}:`, error.message);
-    showErrorToast(error.message);
+  // Called when a filter tag X is clicked
+  onRemoveFilter={(removedFilter, remainingFilters) => {
+    console.log('Removed:', removedFilter);
+    // Refetch with remaining filters
   }}
-  onLoadingStateChange={(loading, context) => {
-    setIsLoading(loading);
-    console.log(`${context} loading: ${loading}`);
+  // Called when "Clear All" is clicked
+  onClearFilters={() => {
+    console.log('All filters cleared');
+    // Refetch without filters
   }}
-  // Pagination events
-  onPageChange={(page, paginationInfo) => {
-    console.log(`Page ${page} of ${paginationInfo.totalPages}`);
-    updateUrl(`?page=${page}`);
-  }}
-  onPageSizeChange={(pageSize, paginationInfo) => {
-    console.log(`Showing ${pageSize} items per page`);
-    saveUserPreference('pageSize', pageSize);
-  }}
-  // Interaction events
-  onSortChange={(sortConfig) => {
-    console.log(`Sorted by ${sortConfig.column} ${sortConfig.direction}`);
-    updateUrl(`?sort=${sortConfig.column}&order=${sortConfig.direction}`);
-  }}
+  // Called on any filter change (convenience callback)
   onFilterChange={(filters) => {
-    console.log(`${filters.length} filters active`);
-    setBadgeCount(filters.length);
-  }}
-  onSearchChange={(searchTerm) => {
-    console.log(`Searching for: "${searchTerm}"`);
-    trackSearchQuery(searchTerm);
-  }}
-  onTableRefresh={() => {
-    console.log('Table refreshed');
-    showSuccessMessage('Data refreshed');
+    console.log('Filters changed:', filters.length);
   }}
 />
 ```
 
-**Row & Cell Interaction Events**<br>
+### Pagination & Sort Events
 
 ```tsx
 <DataGrid
-  data={users}
-  // Row interaction events
+  data={data}
+  onPageChange={(page, paginationInfo) => {
+    console.log(`Page ${page} of ${paginationInfo.totalPages}`);
+  }}
+  onPageSizeChange={(pageSize) => {
+    console.log(`Now showing ${pageSize} per page`);
+  }}
+  onSortChange={(sortConfig) => {
+    console.log(`Sorted by ${sortConfig.column} ${sortConfig.direction}`);
+  }}
+  onSearchChange={(searchTerm) => {
+    console.log(`Searching: "${searchTerm}"`);
+  }}
+  onTableRefresh={() => {
+    console.log('Refresh clicked');
+  }}
+/>
+```
+
+### Row & Cell Events
+
+```tsx
+<DataGrid
+  data={data}
   onTableRowClick={(row, event) => {
-    console.log('Row clicked:', row.name);
-    highlightRow(row.id);
+    console.log('Clicked:', row);
   }}
   onTableRowDoubleClick={(row, event) => {
-    console.log('Row double-clicked:', row.name);
     openEditModal(row);
-    return false; // Prevent default selection behavior
+    return false; // Prevent selection toggle
   }}
   onTableRowHover={(row, event) => {
-    if (row) {
-      console.log('Hovering over:', row.name);
-      showPreviewTooltip(row);
-    } else {
-      hidePreviewTooltip();
-    }
+    row ? showTooltip(row) : hideTooltip();
   }}
-  // Selection events
   onRowSelect={(row, isSelected) => {
     console.log(`${row.name} ${isSelected ? 'selected' : 'deselected'}`);
-    updateRowActions(row, isSelected);
   }}
   onSelectionChange={(selectedRows) => {
-    console.log(`${selectedRows.length} rows selected`);
     setBulkActionsEnabled(selectedRows.length > 0);
-    updateSelectionToolbar(selectedRows);
   }}
-  // Cell interaction events
   onCellClick={(value, row, column, event) => {
-    console.log(`Clicked ${column.label}: ${value}`);
     if (column.key === 'email') {
       window.open(`mailto:${value}`);
     }
@@ -237,164 +328,104 @@ The DataGrid provides 15+ events covering every user interaction:
 />
 ```
 
-## Real-World Event Usage Example
+## 🗑️ Delete Functionality
 
 ```tsx
-import React, { useState } from 'react';
-import { DataGrid } from '@reactorui/datagrid';
-
-function UserManagement() {
-  const [loading, setLoading] = useState(false);
-  const [selectedUsers, setSelectedUsers] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
-
-  return (
-    <div>
-      {/* Bulk Actions Toolbar */}
-      {selectedUsers.length > 0 && (
-        <div className="bg-blue-50 p-4 mb-4 rounded">
-          <span className="font-medium">{selectedUsers.length} users selected</span>
-          <div className="ml-4 space-x-2">
-            <button onClick={() => bulkExport(selectedUsers)}>Export</button>
-            <button onClick={() => bulkDeactivate(selectedUsers)}>Deactivate</button>
-            <button onClick={() => bulkDelete(selectedUsers)}>Delete</button>
-          </div>
-        </div>
-      )}
-
-      {/* DataGrid with comprehensive event handling */}
-      <DataGrid
-        endpoint="/api/users"
-        enableSelection={true}
-        // Sync with component state
-        onLoadingStateChange={(loading) => setLoading(loading)}
-        onPageChange={(page) => setCurrentPage(page)}
-        onSelectionChange={(users) => setSelectedUsers(users)}
-        // User interaction handlers
-        onTableRowDoubleClick={(user) => openUserProfile(user.id)}
-        onDataError={(error) => showErrorNotification(error.message)}
-        onTableRefresh={() => showSuccessMessage('Users refreshed')}
-        // Analytics tracking
-        onSearchChange={(term) => analytics.track('users_searched', { term })}
-        onSortChange={(sort) => analytics.track('users_sorted', { column: sort.column })}
-        onFilterChange={(filters) => analytics.track('users_filtered', { count: filters.length })}
-      />
-
-      {/* Status indicators */}
-      <div className="mt-4 text-sm text-gray-500">
-        Page {currentPage} • {selectedUsers.length} selected • {loading ? 'Loading...' : 'Ready'}
-      </div>
-    </div>
-  );
-}
+<DataGrid
+  data={data}
+  enableSelection={true}
+  enableDelete={true}
+  deleteConfirmation={true} // Shows confirm dialog
+  loadingState={{ delete: isDeleting }}
+  onBulkDelete={async (selectedRows) => {
+    setLoadingState({ delete: true });
+    await deleteUsers(selectedRows.map((r) => r.id));
+    setLoadingState({});
+    refetchData();
+  }}
+/>
 ```
+
+## 📋 Props Reference
+
+### Data & State
+
+| Prop           | Type             | Default       | Description                              |
+| -------------- | ---------------- | ------------- | ---------------------------------------- |
+| `data`         | `T[]`            | **Required**  | Array of data to display                 |
+| `columns`      | `Column<T>[]`    | Auto-detected | Column definitions                       |
+| `loading`      | `boolean`        | `false`       | Simple loading state (backward compat)   |
+| `loadingState` | `LoadingState`   | `{}`          | Granular loading states                  |
+| `totalRecords` | `number`         | -             | Total records for server-side pagination |
+| `currentPage`  | `number`         | -             | Controlled current page                  |
+| `error`        | `string \| null` | -             | Error message to display                 |
+
+### Layout
+
+| Prop           | Type                                   | Default     | Description                       |
+| -------------- | -------------------------------------- | ----------- | --------------------------------- |
+| `maxHeight`    | `string \| number`                     | -           | Fixed height with scrollable body |
+| `stickyHeader` | `boolean`                              | `false`     | Enable sticky table header        |
+| `className`    | `string`                               | `''`        | Additional CSS classes            |
+| `variant`      | `'default' \| 'striped' \| 'bordered'` | `'default'` | Visual theme                      |
+| `size`         | `'sm' \| 'md' \| 'lg'`                 | `'md'`      | Padding/text size                 |
+
+### Features
+
+| Prop                 | Type      | Default | Description           |
+| -------------------- | --------- | ------- | --------------------- |
+| `enableSearch`       | `boolean` | `true`  | Show search input     |
+| `enableSorting`      | `boolean` | `true`  | Enable column sorting |
+| `enableFilters`      | `boolean` | `true`  | Show filter controls  |
+| `enableSelection`    | `boolean` | `true`  | Show row checkboxes   |
+| `enableDelete`       | `boolean` | `false` | Show delete button    |
+| `enableRefresh`      | `boolean` | `false` | Show refresh button   |
+| `deleteConfirmation` | `boolean` | `false` | Confirm before delete |
+
+### Pagination
+
+| Prop              | Type       | Default            | Description                |
+| ----------------- | ---------- | ------------------ | -------------------------- |
+| `pageSize`        | `number`   | `10`               | Items per page             |
+| `pageSizeOptions` | `number[]` | `[5,10,25,50,100]` | Page size dropdown options |
+
+### Event Callbacks
+
+| Event                   | Signature                             | Description          |
+| ----------------------- | ------------------------------------- | -------------------- |
+| `onApplyFilter`         | `(filter, allFilters) => void`        | Filter applied       |
+| `onRemoveFilter`        | `(removed, remaining) => void`        | Filter tag removed   |
+| `onClearFilters`        | `() => void`                          | Clear All clicked    |
+| `onFilterChange`        | `(filters) => void`                   | Any filter change    |
+| `onSearchChange`        | `(term) => void`                      | Search input changed |
+| `onSortChange`          | `(sortConfig) => void`                | Column sort changed  |
+| `onPageChange`          | `(page, info) => void`                | Page navigation      |
+| `onPageSizeChange`      | `(size) => void`                      | Page size changed    |
+| `onTableRefresh`        | `() => void`                          | Refresh clicked      |
+| `onTableRowClick`       | `(row, event) => void`                | Row clicked          |
+| `onTableRowDoubleClick` | `(row, event) => boolean \| void`     | Row double-clicked   |
+| `onTableRowHover`       | `(row \| null, event) => void`        | Row hover            |
+| `onRowSelect`           | `(row, isSelected) => void`           | Single row selection |
+| `onSelectionChange`     | `(rows) => void`                      | Selection changed    |
+| `onCellClick`           | `(value, row, column, event) => void` | Cell clicked         |
+| `onBulkDelete`          | `(rows) => void`                      | Delete clicked       |
 
 ## Column Configuration
 
 ```tsx
 interface Column<T> {
-  key: keyof T | string; // Data property key
-  label: string; // Display header label
-  sortable?: boolean; // Enable sorting (default: true)
-  filterable?: boolean; // Enable in advanced filters (default: true)
+  key: keyof T | string;
+  label: string;
+  sortable?: boolean; // Default: true
+  filterable?: boolean; // Default: true
   dataType?: 'string' | 'number' | 'boolean' | 'date' | 'datetime';
-  width?: string | number; // Fixed column width
-  minWidth?: string | number; // Minimum column width
-  maxWidth?: string | number; // Maximum column width
+  width?: string | number;
+  minWidth?: string | number;
+  maxWidth?: string | number;
   align?: 'left' | 'center' | 'right';
   render?: (value: any, row: T, index: number) => ReactNode;
 }
 ```
-
-## HTTP Configuration
-
-```tsx
-interface HttpConfig {
-  bearerToken?: string; // Authorization: Bearer <token>
-  apiKey?: string; // X-API-Key header
-  customHeaders?: Record<string, string>;
-  method?: 'GET' | 'POST'; // HTTP method (default: GET)
-  postDataFormat?: 'form' | 'json'; // POST body format
-  withCredentials?: boolean; // Include cookies
-  timeout?: number; // Request timeout in ms
-}
-```
-
-# Server Request & Response Format
-
-**Request sent to your API:**
-
-```tsx
-interface ServerRequest {
-  page: number; // Current page number
-  pageSize: number; // Items per page
-  search: string; // Global search term
-  sortColumn: string; // Column to sort by
-  filters: ActiveFilter[]; // Applied filters
-  continuationToken: // Token to grab more records (For server side pagination, if enabled)
-}
-```
-
-**Expected response format:**
-
-```tsx
-interface ServerResponse<T> {
-  items: T[]; // Data array for current page
-  count: number; // Total number of records
-  hasMore: boolean; // Whether more pages available
-  continuationToken: string; // Token to grab more records (For server side pagination, if enabled)
-}
-```
-
-## Event Callbacks
-
-| **Event**               | **Signature**                                                        | **Description**                              |
-| ----------------------- | -------------------------------------------------------------------- | -------------------------------------------- |
-| **Data & State Events** |                                                                      |                                              |
-| `onDataLoad`            | `(data: ServerResponse<T>) => void`                                  | Called when server data loads successfully   |
-| `onDataError`           | `(error: Error, context: string) => void`                            | Called when any error occurs                 |
-| `onLoadingStateChange`  | `(loading: boolean, context: string) => void`                        | Called when loading state changes            |
-| `onPageChange`          | `(page: number, paginationInfo: PaginationInfo) => void`             | Called when user navigates pages             |
-| `onPageSizeChange`      | `(size: number, paginationInfo: PaginationInfo) => void`             | Called when page size changes                |
-| `onSortChange`          | `(sortConfig: SortConfig) => void`                                   | Called when sorting changes                  |
-| `onFilterChange`        | `(filters: ActiveFilter[]) => void`                                  | Called when filters change                   |
-| `onSearchChange`        | `(searchTerm: string) => void`                                       | Called when search term changes              |
-| `onTableRefresh`        | `() => void`                                                         | Called when refresh is triggered             |
-| **Row & Cell Events**   |                                                                      |                                              |
-| `onTableRowClick`       | `(row: T, event: MouseEvent) => void`                                | Called on single row click                   |
-| `onTableRowDoubleClick` | `(row: T, event: MouseEvent) => boolean \| void`                     | Called on row double-click                   |
-| `onRowSelect`           | `(row: T, isSelected: boolean) => void`                              | Called when individual row selection changes |
-| `onSelectionChange`     | `(selectedRows: T[]) => void`                                        | Called when overall selection changes        |
-| `onBulkDelete`          | `(rows: T[]) => void`                                                | Called when delete button is clicked         |
-| `onTableRowHover`       | `(row: T \| null, event: MouseEvent) => void`                        | Called when hovering over rows               |
-| `onCellClick`           | `(value: any, row: T, column: Column<T>, event: MouseEvent) => void` | Called when clicking individual cells        |
-
-### **DataGrid Props**
-
-| **Prop**               | **Type**                               | **Default**        | **Description**                          |
-| ---------------------- | -------------------------------------- | ------------------ | ---------------------------------------- |
-| **Data Configuration** |                                        |                    |                                          |
-| `data`                 | `T[]`                                  | –                  | Static data array for client-side mode   |
-| `endpoint`             | `string`                               | –                  | API endpoint for server-side data        |
-| `columns`              | `Column<T>[]`                          | Auto-detected      | Column configuration array               |
-| **Feature Toggles**    |                                        |                    |                                          |
-| `enableSearch`         | `boolean`                              | `true`             | Enable global search functionality       |
-| `enableSorting`        | `boolean`                              | `true`             | Enable column sorting                    |
-| `enableFilters`        | `boolean`                              | `true`             | Enable advanced filtering                |
-| `enableSelection`      | `boolean`                              | `true`             | Enable row selection with checkboxes     |
-| `enableRefresh`        | `boolean`                              | `false`            | Show/hide the refresh button             |
-| `enableDelete`         | `boolean`                              | `false`            | Enable bulk delete functionality         |
-| `deleteConfirmation`   | `boolean`                              | `false`            | Show confirmation dialog for delete      |
-| **Pagination**         |                                        |                    |                                          |
-| `pageSize`             | `number`                               | `10`               | Client-side pagination size              |
-| `serverPageSize`       | `number`                               | `100`              | Server request batch size                |
-| `pageSizeOptions`      | `number[]`                             | `[5,10,25,50,100]` | Available page size options              |
-| **Styling**            |                                        |                    |                                          |
-| `variant`              | `'default' \| 'striped' \| 'bordered'` | `'default'`        | Visual theme variant                     |
-| `size`                 | `'sm' \| 'md' \| 'lg'`                 | `'md'`             | Size variant for padding and text        |
-| `className`            | `string`                               | `''`               | Additional CSS classes                   |
-| **HTTP Configuration** |                                        |                    |                                          |
-| `httpConfig`           | `HttpConfig`                           | –                  | Authentication and request configuration |
 
 ## 🎨 Theming & Styling
 
@@ -407,373 +438,59 @@ interface ServerResponse<T> {
 
 // Full borders around cells
 <DataGrid variant="bordered" data={data} />
-```
 
-**Size Variants**
+// Size variants
+<DataGrid size="sm" data={data} />  // Compact
+<DataGrid size="md" data={data} />  // Standard
+<DataGrid size="lg" data={data} />  // Comfortable
 
-```tsx
-// Compact spacing
-<DataGrid size="sm" data={data} />
-
-// Standard spacing (default)
-<DataGrid size="md" data={data} />
-
-// Comfortable spacing
-<DataGrid size="lg" data={data} />
-```
-
-**Dark Mode Support**<br>
-The DataGrid automatically adapts to dark mode when using Tailwind CSS:
-
-```tsx
-// Wrap in dark mode provider
+// Dark mode (automatic with Tailwind)
 <div className="dark">
   <DataGrid data={data} />
 </div>
 ```
 
-**Custom Styling**<br>
-
-```tsx
-<DataGrid
-  data={data}
-  className="shadow-xl rounded-xl overflow-hidden"
-  // Add custom CSS classes for complete control
-/>
-```
-
-## Delete Functionality
-
-The delete button appears next to the search input and shows the selection count:
-
-<pre> ``` [Show 10 entries] ........................... [🔍 Search...][🗑️ (3 selected)] ``` </pre>
-
-- Button is **disabled** when no rows are selected
-- Shows **selection count** when items are selected
-- Supports **built-in confirmation dialog**
-- Only appears when **both** `enableDelete={true}` and `enableSelection={true}`
-
-## 🔧 Advanced Usage
-
-**Custom Styling**<br>
-
-```tsx
-const columns: Column<Employee>[] = [
-  {
-    key: 'employee',
-    label: 'Employee',
-    render: (_, employee) => (
-      <div className="flex items-center space-x-3">
-        <img src={employee.avatar} alt={employee.name} className="w-10 h-10 rounded-full" />
-        <div>
-          <div className="font-medium">{employee.name}</div>
-          <div className="text-sm text-gray-500">{employee.title}</div>
-        </div>
-      </div>
-    ),
-  },
-  {
-    key: 'performance',
-    label: 'Performance',
-    render: (score) => (
-      <div className="flex items-center">
-        <div className="flex-1 bg-gray-200 rounded-full h-2 mr-2">
-          <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${score}%` }} />
-        </div>
-        <span className="text-sm font-medium">{score}%</span>
-      </div>
-    ),
-  },
-];
-```
-
-**Advanced Filtering**
-
-```tsx
-// The DataGrid automatically provides appropriate filter inputs:
-// - String: text input with contains/equals/starts with/ends with
-// - Number: number input with comparison operators
-// - Date: date picker with before/after/on
-// - Boolean: dropdown with true/false options
-
-const columns = [
-  { key: 'name', label: 'Name', dataType: 'string' },
-  { key: 'salary', label: 'Salary', dataType: 'number' },
-  { key: 'startDate', label: 'Start Date', dataType: 'date' },
-  { key: 'isActive', label: 'Active', dataType: 'boolean' },
-];
-```
-
-**Real-time Data with WebSockets**
-
-```tsx
-function LiveDataGrid() {
-  const [data, setData] = useState([]);
-
-  useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8080');
-    ws.onmessage = (event) => {
-      const updatedData = JSON.parse(event.data);
-      setData(updatedData);
-    };
-    return () => ws.close();
-  }, []);
-
-  return (
-    <DataGrid
-      data={data}
-      onTableRefresh={() => {
-        // Trigger server refresh
-        fetch('/api/refresh', { method: 'POST' });
-      }}
-    />
-  );
-}
-```
-
-## 🌍 Server Integration Examples
-
-**Node.js/Expresse**
-
-```tsx
-app.post('/api/users', async (req, res) => {
-  const { page, pageSize, search, filters, continuationToken } = JSON.parse(req.body.request);
-
-  let query = User.find();
-
-  // Apply search
-  if (search) {
-    query = query.where({
-      $or: [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-      ],
-    });
-  }
-
-  // Apply filters
-  filters.forEach((filter) => {
-    query = query.where(filter.column)[getOperator(filter.operator)](filter.value);
-  });
-
-  // Handle continuation token (simple ID-based cursor)
-  if (continuationToken) {
-    const { lastId } = JSON.parse(Buffer.from(continuationToken, 'base64').toString());
-    query = query.where('_id').gt(lastId);
-  }
-
-  // Execute query
-  const items = await query.limit(pageSize + 1);
-  const hasMore = items.length > pageSize;
-  const resultItems = hasMore ? items.slice(0, pageSize) : items;
-
-  // Generate next token
-  let nextToken;
-  if (hasMore && resultItems.length > 0) {
-    const lastItem = resultItems[resultItems.length - 1];
-    nextToken = Buffer.from(JSON.stringify({ lastId: lastItem._id })).toString('base64');
-  }
-
-  res.json({
-    items: resultItems, // lowercase works
-    continuationToken: nextToken, // camelCase works
-    hasMore: hasMore, // camelCase works
-    count: resultItems.length, // lowercase works
-  });
-});
-```
-
-**ASP.Net Core**
-
-```tsx
-[HttpPost("api/users")]
-public async Task<IActionResult> GetUsers([FromBody] DataTableRequest request)
-{
-    var query = _context.Users.AsQueryable();
-
-    // Apply search
-    if (!string.IsNullOrEmpty(request.Search))
-        query = query.Where(u => u.Name.Contains(request.Search) || u.Email.Contains(request.Search));
-
-    // Apply filters
-    foreach (var filter in request.Filters)
-        query = ApplyFilter(query, filter);
-
-    // Handle continuation token
-    if (!string.IsNullOrEmpty(request.ContinuationToken))
-    {
-        var token = JsonSerializer.Deserialize<ContinuationToken>(
-            Encoding.UTF8.GetString(Convert.FromBase64String(request.ContinuationToken)));
-        query = query.Where(u => u.Id > token.LastId);
-    }
-
-    query = query.OrderBy(u => u.Id);
-    var items = await query.Take(request.PageSize + 1).ToListAsync();
-    var hasMore = items.Count > request.PageSize;
-    var resultItems = hasMore ? items.Take(request.PageSize).ToList() : items;
-
-    string nextToken = null;
-    if (hasMore && resultItems.Any())
-    {
-        var lastItem = resultItems.Last();
-        var tokenData = new ContinuationToken { LastId = lastItem.Id };
-        nextToken = Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(tokenData)));
-    }
-
-    return Ok(new
-    {
-        Items = resultItems,                    // PascalCase works
-        ContinuationToken = nextToken,          // PascalCase works
-        HasMore = hasMore,                      // PascalCase works
-        Count = resultItems.Count               // PascalCase works
-    });
-}
-```
-
-**Laravel/PHP**
-
-```tsx
-Route::post('/api/users', function (Request $request) {
-    $requestData = json_decode($request->input('request'), true);
-    $query = User::query();
-
-    // Apply search
-    if (!empty($requestData['search'])) {
-        $query->where(function($q) use ($requestData) {
-            $q->where('name', 'like', "%{$requestData['search']}%")
-              ->orWhere('email', 'like', "%{$requestData['search']}%");
-        });
-    }
-
-    // Apply filters
-    foreach ($requestData['filters'] as $filter) {
-        $query->where($filter['column'], $filter['operator'], $filter['value']);
-    }
-
-    // Handle continuation token
-    if (!empty($requestData['continuationToken'])) {
-        $tokenData = json_decode(base64_decode($requestData['continuationToken']), true);
-        $query->where('id', '>', $tokenData['lastId']);
-    }
-
-    $query->orderBy('id', 'asc');
-    $items = $query->take($requestData['pageSize'] + 1)->get();
-    $hasMore = $items->count() > $requestData['pageSize'];
-    $resultItems = $hasMore ? $items->take($requestData['pageSize']) : $items;
-
-    $nextToken = null;
-    if ($hasMore && $resultItems->isNotEmpty()) {
-        $lastItem = $resultItems->last();
-        $nextToken = base64_encode(json_encode(['lastId' => $lastItem->id]));
-    }
-
-    return response()->json([
-        'data' => $resultItems->values(),       // Laravel convention works
-        'continuation_token' => $nextToken,     // snake_case works
-        'has_more' => $hasMore,                // snake_case works
-        'total' => $resultItems->count()       // Laravel convention works
-    ]);
-});
-```
-
 ## 🧪 Testing
 
 ```bash
-# Run test suite
-npm test
-
-# Watch mode for development
-npm run test:watch
-
-# Coverage report
-npm run test:coverage
+npm test              # Run tests
+npm run test:watch    # Watch mode
+npm run test:coverage # Coverage report
 ```
-
-**Testing with Jest & React Testing Library**
 
 ```tsx
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DataGrid } from '@reactorui/datagrid';
 
-test('handles user interactions', () => {
-  const onSelectionChange = jest.fn();
-  const testData = [{ id: 1, name: 'John', email: 'john@test.com' }];
+test('handles filter application', async () => {
+  const onApplyFilter = jest.fn();
+  render(<DataGrid data={testData} enableFilters={true} onApplyFilter={onApplyFilter} />);
 
-  render(<DataGrid data={testData} onSelectionChange={onSelectionChange} />);
+  // Select column, enter value, click Apply
+  const selects = screen.getAllByRole('combobox');
+  fireEvent.change(selects[0], { target: { value: 'name' } });
 
-  // Test search
-  fireEvent.change(screen.getByPlaceholderText('Search...'), {
-    target: { value: 'John' },
-  });
+  const input = screen.getByPlaceholderText('Enter value');
+  fireEvent.change(input, { target: { value: 'John' } });
 
-  // Test selection
-  fireEvent.click(screen.getAllByRole('checkbox')[1]);
+  fireEvent.click(screen.getByRole('button', { name: /apply filter/i }));
 
-  expect(onSelectionChange).toHaveBeenCalledWith([testData[0]]);
+  expect(onApplyFilter).toHaveBeenCalledWith(
+    expect.objectContaining({ column: 'name', value: 'John' }),
+    expect.any(Array)
+  );
 });
-```
-
-## 📚 Examples
-
-Check out the examples/ directory for complete working examples:
-
-examples/basic/ - Simple usage with auto-detected columns
-examples/advanced/ - Custom columns, renderers, and styling
-examples/events/ - Comprehensive event handling demonstration
-
-## 🚀 Performance Tips
-
-Use server-side pagination for datasets > 1000 records
-Implement custom renderers efficiently with React.memo
-Debounce search for better UX with large datasets
-Use specific column keys instead of auto-detection for better performance
-
-```tsx
-const StatusBadge = React.memo(({ status }: { status: string }) => (
-  <span className={`badge ${status === 'active' ? 'bg-green' : 'bg-red'}`}>{status}</span>
-));
-
-// Debounced search
-const [debouncedSearch] = useDebounce(searchTerm, 300);
 ```
 
 ## 🔧 Development
 
 ```bash
-# Install dependencies
-npm install
-
-# Run tests
-npm test
-
-# Build library
-npm run build
-
-# Type checking
-npm run typecheck
-
-# Linting
-npm run lint
-
-# Format code
-npm run format
+npm install        # Install dependencies
+npm test           # Run tests
+npm run build      # Build library
+npm run typecheck  # Type checking
+npm run lint       # Linting
 ```
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our Contributing Guide for details.
-
-Fork the repository
-Create your feature branch (git checkout -b feature/amazing-feature)
-Write tests for your changes
-Commit your changes (git commit -m 'Add amazing feature')
-Push to the branch (git push origin feature/amazing-feature)
-Open a Pull Request
-
-## Support
-
-- 📖 **Documentation**: Check this README and inline TypeScript types
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/ReactorUI/datagrid/issues)
 
 ## 📄 License
 
@@ -783,7 +500,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 Part of the ReactorUI ecosystem:
 
-- 📊 [@reactorui/recurrence](https://www.npmjs.com/package/@reactorui/recurrence) - A powerful, flexible recurrence rule builder for React applications
+- 📊 [@reactorui/recurrence](https://www.npmjs.com/package/@reactorui/recurrence) - Recurrence rule builder
 - 🔜 More components coming soon!
 
 ---
