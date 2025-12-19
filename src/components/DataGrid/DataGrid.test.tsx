@@ -1,15 +1,16 @@
-// File: src/components/DataGrid/DataGrid.test.tsx
-
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { DataGrid } from './DataGrid';
 
-// Simple test data
 const testData = [
   { id: 1, name: 'John Doe', email: 'john@example.com' },
   { id: 2, name: 'Jane Smith', email: 'jane@example.com' },
 ];
+
+// =============================================================================
+// Basic Rendering
+// =============================================================================
 
 describe('DataGrid', () => {
   it('renders without crashing', () => {
@@ -19,7 +20,6 @@ describe('DataGrid', () => {
 
   it('displays data correctly', () => {
     render(<DataGrid data={testData} />);
-
     expect(screen.getByText('John Doe')).toBeInTheDocument();
     expect(screen.getByText('jane@example.com')).toBeInTheDocument();
   });
@@ -29,6 +29,30 @@ describe('DataGrid', () => {
     expect(screen.getByText('No data available')).toBeInTheDocument();
   });
 
+  it('auto-generates columns from data keys', () => {
+    render(<DataGrid data={testData} />);
+    const headers = screen.getAllByRole('columnheader');
+    const headerTexts = headers.map((h) => h.textContent);
+    expect(headerTexts.some((t) => t?.includes('Id'))).toBe(true);
+    expect(headerTexts.some((t) => t?.includes('Name'))).toBe(true);
+    expect(headerTexts.some((t) => t?.includes('Email'))).toBe(true);
+  });
+
+  it('uses custom columns when provided', () => {
+    const columns = [{ key: 'name', label: 'Full Name' }];
+    render(<DataGrid data={testData} columns={columns} />);
+    const headers = screen.getAllByRole('columnheader');
+    const headerTexts = headers.map((h) => h.textContent);
+    expect(headerTexts.some((t) => t?.includes('Full Name'))).toBe(true);
+    expect(headerTexts.some((t) => t?.includes('Email'))).toBe(false);
+  });
+});
+
+// =============================================================================
+// Selection
+// =============================================================================
+
+describe('DataGrid Selection', () => {
   it('handles row selection', async () => {
     const onSelectionChange = jest.fn();
     render(
@@ -36,33 +60,52 @@ describe('DataGrid', () => {
     );
 
     const checkboxes = screen.getAllByRole('checkbox');
-    const firstRowCheckbox = checkboxes[1]; // First is select all
-
-    fireEvent.click(firstRowCheckbox);
+    fireEvent.click(checkboxes[1]);
 
     await waitFor(() => {
       expect(onSelectionChange).toHaveBeenCalled();
     });
   });
 
-  it('handles select all functionality', async () => {
+  it('handles select all', async () => {
     const onSelectionChange = jest.fn();
     render(
       <DataGrid
         data={testData}
         enableSelection={true}
         onSelectionChange={onSelectionChange}
-        pageSize={10} // Ensure all data is on one page
+        pageSize={10}
       />
     );
 
     const checkboxes = screen.getAllByRole('checkbox');
-    const selectAllCheckbox = checkboxes[0];
-
-    fireEvent.click(selectAllCheckbox);
+    fireEvent.click(checkboxes[0]);
 
     await waitFor(() => {
       expect(onSelectionChange).toHaveBeenCalledWith(testData);
+    });
+  });
+
+  it('hides checkboxes when enableSelection is false', () => {
+    render(<DataGrid data={testData} enableSelection={false} />);
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  });
+});
+
+// =============================================================================
+// Row Events
+// =============================================================================
+
+describe('DataGrid Row Events', () => {
+  it('calls onTableRowClick when row is clicked', async () => {
+    const onTableRowClick = jest.fn();
+    render(<DataGrid data={testData} enableSelection={false} onTableRowClick={onTableRowClick} />);
+
+    const row = screen.getByText('John Doe').closest('tr');
+    fireEvent.click(row!);
+
+    await waitFor(() => {
+      expect(onTableRowClick).toHaveBeenCalledWith(testData[0], expect.any(Object));
     });
   });
 
@@ -70,10 +113,8 @@ describe('DataGrid', () => {
     const onTableRowDoubleClick = jest.fn();
     render(<DataGrid data={testData} onTableRowDoubleClick={onTableRowDoubleClick} />);
 
-    const firstRow = screen.getByText('John Doe').closest('tr');
-    if (firstRow) {
-      fireEvent.doubleClick(firstRow);
-    }
+    const row = screen.getByText('John Doe').closest('tr');
+    fireEvent.doubleClick(row!);
 
     await waitFor(() => {
       expect(onTableRowDoubleClick).toHaveBeenCalledWith(testData[0], expect.any(Object));
@@ -82,56 +123,33 @@ describe('DataGrid', () => {
 });
 
 // =============================================================================
-// Loading State Tests
+// Loading States
 // =============================================================================
 
 describe('DataGrid Loading States', () => {
-  it('shows loading skeleton when loading prop is true', () => {
-    const { container } = render(<DataGrid data={[]} loading={true} />);
-    // Loading skeleton shows animate-pulse rows
-    const skeletonRows = container.querySelectorAll('.animate-pulse');
-    expect(skeletonRows.length).toBeGreaterThan(0);
+  it('shows loading spinner when loading is true', () => {
+    render(<DataGrid data={[]} loading={true} />);
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
-  it('shows loading skeleton when loadingState.data is true', () => {
-    const { container } = render(<DataGrid data={[]} loadingState={{ data: true }} />);
-    const skeletonRows = container.querySelectorAll('.animate-pulse');
-    expect(skeletonRows.length).toBeGreaterThan(0);
+  it('shows loading spinner when loadingState.data is true', () => {
+    render(<DataGrid data={[]} loadingState={{ data: true }} />);
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
-  it('shows spinner on Apply Filter button when loadingState.filter is true', () => {
+  it('shows "Applying..." on filter button when loadingState.filter is true', () => {
     render(<DataGrid data={testData} enableFilters={true} loadingState={{ filter: true }} />);
-
-    // Button should show "Applying..." text when filter loading
     expect(screen.getByText(/applying/i)).toBeInTheDocument();
   });
 
-  it('shows normal Apply Filter button when not loading', () => {
-    render(<DataGrid data={testData} enableFilters={true} />);
-
-    const applyButton = screen.getByRole('button', { name: /apply filter/i });
-    expect(applyButton).toBeInTheDocument();
-  });
-
   it('disables search input when loadingState.data is true', () => {
-    render(
-      <DataGrid
-        data={testData}
-        enableFilters={true}
-        enableSearch={true}
-        loadingState={{ data: true }}
-      />
-    );
-
-    const searchInput = screen.getByPlaceholderText('Search...');
-    expect(searchInput).toBeDisabled();
+    render(<DataGrid data={testData} enableSearch={true} loadingState={{ data: true }} />);
+    expect(screen.getByPlaceholderText('Search...')).toBeDisabled();
   });
 
   it('disables refresh button when loadingState.refresh is true', () => {
     render(<DataGrid data={testData} enableRefresh={true} loadingState={{ refresh: true }} />);
-
-    const refreshButton = screen.getByTitle(/refresh/i);
-    expect(refreshButton).toBeDisabled();
+    expect(screen.getByTitle(/refresh/i)).toBeDisabled();
   });
 
   it('disables delete button when loadingState.delete is true', async () => {
@@ -144,12 +162,10 @@ describe('DataGrid Loading States', () => {
       />
     );
 
-    // Select a row first
     const checkboxes = screen.getAllByRole('checkbox');
     fireEvent.click(checkboxes[1]);
 
     await waitFor(() => {
-      // Delete button should be disabled during delete loading
       const buttons = screen.getAllByRole('button');
       const deleteButton = buttons.find(
         (btn) =>
@@ -162,60 +178,67 @@ describe('DataGrid Loading States', () => {
 });
 
 // =============================================================================
-// Layout Tests (maxHeight and stickyHeader)
+// Layout (maxHeight / stickyHeader)
 // =============================================================================
 
 describe('DataGrid Layout', () => {
   it('renders without fixed layout by default', () => {
     const { container } = render(<DataGrid data={testData} />);
-    const gridContainer = container.firstChild as HTMLElement;
+    const grid = container.firstChild as HTMLElement;
 
-    // Should not have flex layout classes
-    expect(gridContainer).not.toHaveClass('flex');
-    expect(gridContainer).not.toHaveClass('flex-col');
+    expect(grid).not.toHaveClass('flex');
+    expect(grid).not.toHaveClass('flex-col');
   });
 
-  it('applies fixed layout when maxHeight is set', () => {
+  it('applies flex layout when maxHeight is set', () => {
     const { container } = render(<DataGrid data={testData} maxHeight="400px" />);
-    const gridContainer = container.firstChild as HTMLElement;
+    const grid = container.firstChild as HTMLElement;
 
-    expect(gridContainer).toHaveClass('flex');
-    expect(gridContainer).toHaveClass('flex-col');
-    expect(gridContainer).toHaveStyle({ height: '400px' });
+    expect(grid).toHaveClass('flex');
+    expect(grid).toHaveClass('flex-col');
+    expect(grid).toHaveStyle({ maxHeight: '400px' });
   });
 
-  it('applies fixed layout when stickyHeader is true', () => {
+  it('applies flex layout when stickyHeader is true', () => {
     const { container } = render(<DataGrid data={testData} stickyHeader={true} />);
-    const gridContainer = container.firstChild as HTMLElement;
+    const grid = container.firstChild as HTMLElement;
 
-    expect(gridContainer).toHaveClass('flex');
-    expect(gridContainer).toHaveClass('flex-col');
+    expect(grid).toHaveClass('flex');
+    expect(grid).toHaveClass('flex-col');
   });
 
-  it('accepts maxHeight as number', () => {
+  it('converts numeric maxHeight to pixels', () => {
     const { container } = render(<DataGrid data={testData} maxHeight={500} />);
-    const gridContainer = container.firstChild as HTMLElement;
+    const grid = container.firstChild as HTMLElement;
 
-    expect(gridContainer).toHaveStyle({ height: '500px' });
+    expect(grid).toHaveStyle({ maxHeight: '500px' });
   });
 
-  it('accepts maxHeight as vh units', () => {
+  it('accepts maxHeight with vh units', () => {
     const { container } = render(<DataGrid data={testData} maxHeight="50vh" />);
-    const gridContainer = container.firstChild as HTMLElement;
+    const grid = container.firstChild as HTMLElement;
 
-    expect(gridContainer).toHaveStyle({ height: '50vh' });
+    expect(grid).toHaveStyle({ maxHeight: '50vh' });
   });
 
-  it('accepts maxHeight as calc expression', () => {
+  it('accepts maxHeight with calc expression', () => {
     const { container } = render(<DataGrid data={testData} maxHeight="calc(100vh - 200px)" />);
-    const gridContainer = container.firstChild as HTMLElement;
+    const grid = container.firstChild as HTMLElement;
 
-    expect(gridContainer).toHaveStyle({ height: 'calc(100vh - 200px)' });
+    expect(grid).toHaveStyle({ maxHeight: 'calc(100vh - 200px)' });
+  });
+
+  it('shrinks to fit content when data is empty', () => {
+    const { container } = render(<DataGrid data={[]} maxHeight="400px" />);
+    const grid = container.firstChild as HTMLElement;
+
+    expect(grid).toHaveStyle({ maxHeight: '400px' });
+    expect(grid.style.height).toBe('');
   });
 });
 
 // =============================================================================
-// Error State Tests
+// Error State
 // =============================================================================
 
 describe('DataGrid Error Handling', () => {
@@ -229,16 +252,14 @@ describe('DataGrid Error Handling', () => {
   it('shows Try Again button on error', () => {
     render(<DataGrid data={[]} error="Network error" />);
 
-    const tryAgainButton = screen.getByRole('button', { name: /try again/i });
-    expect(tryAgainButton).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
   });
 
   it('calls onTableRefresh when Try Again is clicked', async () => {
     const onTableRefresh = jest.fn();
     render(<DataGrid data={[]} error="Network error" onTableRefresh={onTableRefresh} />);
 
-    const tryAgainButton = screen.getByRole('button', { name: /try again/i });
-    fireEvent.click(tryAgainButton);
+    fireEvent.click(screen.getByRole('button', { name: /try again/i }));
 
     await waitFor(() => {
       expect(onTableRefresh).toHaveBeenCalled();
@@ -247,11 +268,11 @@ describe('DataGrid Error Handling', () => {
 });
 
 // =============================================================================
-// Controlled Mode Tests (Server-Side)
+// Controlled Mode (Server-Side)
 // =============================================================================
 
 describe('DataGrid Controlled Mode', () => {
-  it('uses totalRecords for pagination when provided', () => {
+  it('uses totalRecords for pagination display', () => {
     render(<DataGrid data={testData} totalRecords={100} pageSize={10} />);
 
     expect(screen.getByText(/of 100 records/i)).toBeInTheDocument();

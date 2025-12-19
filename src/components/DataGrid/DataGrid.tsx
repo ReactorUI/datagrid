@@ -254,7 +254,11 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
   return (
     <div
       className={`${theme.container} ${className} ${hasFixedLayout ? 'flex flex-col' : ''}`}
-      style={hasFixedLayout && maxHeight ? { height: maxHeight } : undefined}
+      style={
+        hasFixedLayout && maxHeight
+          ? { maxHeight: typeof maxHeight === 'number' ? `${maxHeight}px` : maxHeight }
+          : undefined
+      }
       {...rest}
     >
       {/* Row 1: Filters - Fixed at top when scrollable */}

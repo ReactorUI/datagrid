@@ -193,6 +193,7 @@ export const FilterControls = <T,>({
         <input
           type="text"
           disabled
+          value=""
           placeholder="Select column first"
           className={styles.inputDisabled}
         />

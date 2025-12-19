@@ -95,28 +95,44 @@ export const TableBody = <T extends Record<string, any>>({
     }
   };
 
-  if (loading && data.length === 0) {
+  if (loading) {
     return (
-      <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
-        {Array.from({ length: 5 }).map((_, index) => (
-          <tr key={index} className="animate-pulse">
-            {enableSelection && (
-              <td className={theme.cell}>
-                <div className="w-4 h-4 bg-gray-200 dark:bg-gray-600 rounded"></div>
-              </td>
-            )}
-            {columns.map((column) => (
-              <td key={String(column.key)} className={theme.cell}>
-                <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded"></div>
-              </td>
-            ))}
-          </tr>
-        ))}
+      <tbody className="bg-white dark:bg-gray-800">
+        <tr>
+          <td
+            colSpan={columns.length + (enableSelection ? 1 : 0)}
+            className="px-4 py-12 text-center text-gray-500 dark:text-gray-400"
+          >
+            <div className="flex items-center justify-center gap-2">
+              <svg
+                className="animate-spin h-5 w-5 text-blue-600 dark:text-blue-400"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
+              </svg>
+              <span>Loading...</span>
+            </div>
+          </td>
+        </tr>
       </tbody>
     );
   }
 
-  if (data.length === 0 && !loading) {
+  if (data.length === 0) {
     return (
       <tbody className="bg-white dark:bg-gray-800">
         <tr>
