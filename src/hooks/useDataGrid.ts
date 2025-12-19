@@ -17,6 +17,14 @@ interface UseDataGridProps<T> {
   currentPage?: number;
   loading?: boolean;
 
+  /**
+   * Filter behavior mode:
+   * - 'client' (default): Filters locally, no onApplyFilter callback
+   * - 'server': No local filtering, only fires onApplyFilter
+   * - 'both': Filters locally AND fires onApplyFilter
+   */
+  filterMode?: 'client' | 'server' | 'both';
+
   // Callbacks
   onPageChange?: (page: number, info: PaginationInfo) => void;
   onPageSizeChange?: (size: number) => void;
@@ -38,6 +46,7 @@ export const useDataGrid = <T extends BaseRowData>({
   totalRecords: externalTotalRecords,
   currentPage: externalCurrentPage,
   loading: externalLoading = false,
+  filterMode = 'client',
   onPageChange,
   onPageSizeChange,
   onSortChange,
@@ -84,14 +93,17 @@ export const useDataGrid = <T extends BaseRowData>({
 
   // ===== Data Processing (Client-side only) =====
   const processedData = useMemo(() => {
-    if (isControlled) {
-      // In controlled mode, parent handles filtering - just sort
+    // Determine if we should filter locally
+    const shouldFilterLocally = filterMode === 'client' || filterMode === 'both';
+
+    if (isControlled && filterMode === 'server') {
+      // Server mode with controlled data - parent handles everything, just sort
       return sortConfig.column ? sortData(data, sortConfig.column, sortConfig.direction) : data;
     }
 
     let result = [...data];
 
-    // Search
+    // Search (always client-side for now)
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       result = result.filter((row) =>
@@ -99,13 +111,15 @@ export const useDataGrid = <T extends BaseRowData>({
       );
     }
 
-    // Filters
-    activeFilters.forEach((filter) => {
-      result = result.filter((row) => {
-        const value = (row as any)[filter.column];
-        return compareValues(value, filter.value, filter.operator, filter.dataType);
+    // Filters - only apply locally if filterMode allows
+    if (shouldFilterLocally) {
+      activeFilters.forEach((filter) => {
+        result = result.filter((row) => {
+          const value = (row as any)[filter.column];
+          return compareValues(value, filter.value, filter.operator, filter.dataType);
+        });
       });
-    });
+    }
 
     // Sort
     if (sortConfig.column) {
@@ -113,7 +127,7 @@ export const useDataGrid = <T extends BaseRowData>({
     }
 
     return result;
-  }, [data, searchTerm, activeFilters, sortConfig, isControlled]);
+  }, [data, searchTerm, activeFilters, sortConfig, isControlled, filterMode]);
 
   // ===== Pagination =====
   const paginatedData = useMemo(() => {
@@ -210,11 +224,13 @@ export const useDataGrid = <T extends BaseRowData>({
       setActiveFilters(newFilters);
       if (!isControlled) setInternalPage(1);
 
-      // Fire callbacks
-      onApplyFilter?.(fullFilter, newFilters);
-      onFilterChange?.(newFilters);
+      // Fire callbacks only for 'server' or 'both' modes
+      if (filterMode !== 'client') {
+        onApplyFilter?.(fullFilter, newFilters);
+        onFilterChange?.(newFilters);
+      }
     },
-    [activeFilters, isControlled, onApplyFilter, onFilterChange]
+    [activeFilters, isControlled, filterMode, onApplyFilter, onFilterChange]
   );
 
   const removeFilter = useCallback(
@@ -225,21 +241,25 @@ export const useDataGrid = <T extends BaseRowData>({
       setActiveFilters(newFilters);
       if (!isControlled) setInternalPage(1);
 
-      // Fire callbacks
-      if (removed) onRemoveFilter?.(removed, newFilters);
-      onFilterChange?.(newFilters);
+      // Fire callbacks only for 'server' or 'both' modes
+      if (filterMode !== 'client') {
+        if (removed) onRemoveFilter?.(removed, newFilters);
+        onFilterChange?.(newFilters);
+      }
     },
-    [activeFilters, isControlled, onRemoveFilter, onFilterChange]
+    [activeFilters, isControlled, filterMode, onRemoveFilter, onFilterChange]
   );
 
   const clearFilters = useCallback(() => {
     setActiveFilters([]);
     if (!isControlled) setInternalPage(1);
 
-    // Fire callbacks
-    onClearFilters?.();
-    onFilterChange?.([]);
-  }, [isControlled, onClearFilters, onFilterChange]);
+    // Fire callbacks only for 'server' or 'both' modes
+    if (filterMode !== 'client') {
+      onClearFilters?.();
+      onFilterChange?.([]);
+    }
+  }, [isControlled, filterMode, onClearFilters, onFilterChange]);
 
   // ===== Selection Actions =====
   const selectRow = useCallback((rowId: string, selected: boolean) => {

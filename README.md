@@ -372,15 +372,22 @@ For large datasets, enable scrollable body with fixed headers:
 
 ### Features
 
-| Prop                 | Type      | Default | Description           |
-| -------------------- | --------- | ------- | --------------------- |
-| `enableSearch`       | `boolean` | `true`  | Show search input     |
-| `enableSorting`      | `boolean` | `true`  | Enable column sorting |
-| `enableFilters`      | `boolean` | `true`  | Show filter controls  |
-| `enableSelection`    | `boolean` | `true`  | Show row checkboxes   |
-| `enableDelete`       | `boolean` | `false` | Show delete button    |
-| `enableRefresh`      | `boolean` | `false` | Show refresh button   |
-| `deleteConfirmation` | `boolean` | `false` | Confirm before delete |
+| Prop                 | Type                             | Default    | Description                 |
+| -------------------- | -------------------------------- | ---------- | --------------------------- |
+| `enableSearch`       | `boolean`                        | `true`     | Show search input           |
+| `enableSorting`      | `boolean`                        | `true`     | Enable column sorting       |
+| `enableFilters`      | `boolean`                        | `true`     | Show filter controls        |
+| `enableSelection`    | `boolean`                        | `true`     | Show row checkboxes         |
+| `enableDelete`       | `boolean`                        | `false`    | Show delete button          |
+| `enableRefresh`      | `boolean`                        | `false`    | Show refresh button         |
+| `deleteConfirmation` | `boolean`                        | `false`    | Confirm before delete       |
+| `filterMode`         | `'client' \| 'server' \| 'both'` | `'client'` | Filter behavior (see below) |
+
+**filterMode options:**
+
+- `'client'` - Filters locally, no callbacks fired
+- `'server'` - Fires callbacks only, no local filtering
+- `'both'` - Filters locally AND fires callbacks
 
 ### Pagination
 
@@ -393,10 +400,10 @@ For large datasets, enable scrollable body with fixed headers:
 
 | Event                   | Signature                             | Description          |
 | ----------------------- | ------------------------------------- | -------------------- |
-| `onApplyFilter`         | `(filter, allFilters) => void`        | Filter applied       |
-| `onRemoveFilter`        | `(removed, remaining) => void`        | Filter tag removed   |
-| `onClearFilters`        | `() => void`                          | Clear All clicked    |
-| `onFilterChange`        | `(filters) => void`                   | Any filter change    |
+| `onApplyFilter`\*       | `(filter, allFilters) => void`        | Filter applied       |
+| `onRemoveFilter`\*      | `(removed, remaining) => void`        | Filter tag removed   |
+| `onClearFilters`\*      | `() => void`                          | Clear All clicked    |
+| `onFilterChange`\*      | `(filters) => void`                   | Any filter change    |
 | `onSearchChange`        | `(term) => void`                      | Search input changed |
 | `onSortChange`          | `(sortConfig) => void`                | Column sort changed  |
 | `onPageChange`          | `(page, info) => void`                | Page navigation      |
@@ -409,6 +416,8 @@ For large datasets, enable scrollable body with fixed headers:
 | `onSelectionChange`     | `(rows) => void`                      | Selection changed    |
 | `onCellClick`           | `(value, row, column, event) => void` | Cell clicked         |
 | `onBulkDelete`          | `(rows) => void`                      | Delete clicked       |
+
+_\* Filter callbacks only fire when `filterMode="server"` or `filterMode="both"`_
 
 ## Column Configuration
 
@@ -480,6 +489,80 @@ test('handles filter application', async () => {
     expect.any(Array)
   );
 });
+```
+
+## ⚠️ Migration Guide
+
+### Deprecated Props (v1.x → v2.0)
+
+The following props are **deprecated** and will show console warnings. They will be removed in the next major version:
+
+| Deprecated Prop        | Replacement         | Notes                               |
+| ---------------------- | ------------------- | ----------------------------------- |
+| `endpoint`             | Use `data` prop     | Fetch data in parent, pass to grid  |
+| `httpConfig`           | Use `data` prop     | Handle auth/headers in parent fetch |
+| `serverPageSize`       | `pageSize`          | Use standard `pageSize` prop        |
+| `onDataLoad`           | Use `data` prop     | Handle in parent after fetch        |
+| `onDataError`          | `error` prop        | Pass error message as prop          |
+| `onLoadingStateChange` | `loadingState` prop | Use granular loading states         |
+
+### Before (Old API)
+
+```tsx
+// ❌ Deprecated approach
+<DataGrid
+  endpoint="/api/users"
+  httpConfig={{ bearerToken: 'xxx' }}
+  serverPageSize={100}
+  onDataLoad={(res) => console.log(res)}
+  onDataError={(err) => console.error(err)}
+/>
+```
+
+### After (New API)
+
+```tsx
+// ✅ Recommended approach
+function MyGrid() {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/users', {
+        headers: { Authorization: 'Bearer xxx' },
+      });
+      setData(await res.json());
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return <DataGrid data={data} loadingState={{ data: loading }} error={error} pageSize={25} />;
+}
+```
+
+### Filter Mode Change
+
+**Breaking:** Filter callbacks now require `filterMode` to be set:
+
+```tsx
+// ❌ Won't fire callbacks (filterMode defaults to 'client')
+<DataGrid
+  data={data}
+  onApplyFilter={(f) => console.log(f)}  // Never called!
+/>
+
+// ✅ Set filterMode to enable callbacks
+<DataGrid
+  data={data}
+  filterMode="server"  // or "both"
+  onApplyFilter={(f) => fetchWithFilter(f)}
+/>
 ```
 
 ## 🔧 Development

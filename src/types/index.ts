@@ -85,6 +85,58 @@ export interface LoadingState {
 }
 
 // ============================================================================
+// DEPRECATED - Server-side Types (kept for backward compatibility)
+// ============================================================================
+
+/**
+ * @deprecated Use controlled mode instead. Pass data directly and handle fetching in parent.
+ */
+export interface HttpConfig {
+  bearerToken?: string;
+  apiKey?: string;
+  customHeaders?: Record<string, string>;
+  method?: 'GET' | 'POST';
+  postDataFormat?: 'json' | 'formdata';
+}
+
+/**
+ * @deprecated Use controlled mode instead.
+ */
+export interface ServerRequest {
+  page: number;
+  pageSize: number;
+  sortColumn?: string;
+  sortDirection?: 'asc' | 'desc';
+  searchTerm?: string;
+  filters?: ActiveFilter[];
+}
+
+/**
+ * @deprecated Use controlled mode instead.
+ */
+export interface ServerResponse<T = BaseRowData> {
+  items: T[];
+  totalRecords: number;
+  page?: number;
+  pageSize?: number;
+}
+
+/**
+ * @deprecated Use controlled mode instead.
+ */
+export type OnDataLoadCallback<T = BaseRowData> = (response: ServerResponse<T>) => void;
+
+/**
+ * @deprecated Use controlled mode instead.
+ */
+export type OnDataErrorCallback = (error: Error, context: string) => void;
+
+/**
+ * @deprecated Use loadingState prop instead.
+ */
+export type OnLoadingStateChangeCallback = (loading: boolean, context: string) => void;
+
+// ============================================================================
 // Event Callback Types
 // ============================================================================
 
@@ -175,6 +227,14 @@ export interface DataGridProps<T = BaseRowData>
   enableRefresh?: boolean;
   deleteConfirmation?: boolean;
 
+  /**
+   * Filter behavior mode:
+   * - 'client' (default): Filters data locally, no onApplyFilter callback fired
+   * - 'server': Fires onApplyFilter callback only, no local filtering
+   * - 'both': Filters locally AND fires callback
+   */
+  filterMode?: 'client' | 'server' | 'both';
+
   // ===== PAGINATION =====
   pageSize?: number;
   pageSizeOptions?: number[];
@@ -227,6 +287,44 @@ export interface DataGridProps<T = BaseRowData>
   // ===== ACTION EVENTS =====
   onTableRefresh?: OnTableRefreshCallback;
   onBulkDelete?: OnBulkDeleteCallback<T>;
+
+  // ===== DEPRECATED PROPS (kept for backward compatibility) =====
+
+  /**
+   * @deprecated Use controlled mode instead. Fetch data in parent and pass via `data` prop.
+   * Will be removed in next major version.
+   */
+  endpoint?: string;
+
+  /**
+   * @deprecated Use controlled mode instead.
+   * Will be removed in next major version.
+   */
+  httpConfig?: HttpConfig;
+
+  /**
+   * @deprecated Use `pageSize` prop instead.
+   * Will be removed in next major version.
+   */
+  serverPageSize?: number;
+
+  /**
+   * @deprecated Use controlled mode. Handle data loading in parent component.
+   * Will be removed in next major version.
+   */
+  onDataLoad?: OnDataLoadCallback<T>;
+
+  /**
+   * @deprecated Use `error` prop instead.
+   * Will be removed in next major version.
+   */
+  onDataError?: OnDataErrorCallback;
+
+  /**
+   * @deprecated Use `loadingState` prop instead.
+   * Will be removed in next major version.
+   */
+  onLoadingStateChange?: OnLoadingStateChangeCallback;
 }
 
 // ============================================================================

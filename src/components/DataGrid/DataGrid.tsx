@@ -15,14 +15,24 @@ import { inferDataType } from '../../utils';
 
 const Spinner: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
   <svg
-    className={`animate-spin ${className}`}
+    className={`${className}`}
+    style={{ animation: 'spin 1s linear infinite' }}
     xmlns="http://www.w3.org/2000/svg"
     fill="none"
     viewBox="0 0 24 24"
   >
-    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+    <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+    <circle
+      className="opacity-25"
+      cx="12"
+      cy="12"
+      r="10"
+      stroke="currentColor"
+      strokeWidth="4"
+      style={{ opacity: 0.25 }}
+    />
     <path
-      className="opacity-75"
+      style={{ opacity: 0.75 }}
       fill="currentColor"
       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
     />
@@ -55,6 +65,7 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
   enableDelete = false,
   enableRefresh = false,
   deleteConfirmation = false,
+  filterMode = 'client',
 
   // Layout
   maxHeight,
@@ -95,9 +106,65 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
   onTableRefresh,
   onBulkDelete,
 
+  // DEPRECATED Props (kept for backward compatibility)
+  endpoint,
+  httpConfig,
+  serverPageSize,
+  onDataLoad,
+  onDataError,
+  onLoadingStateChange,
+
   ...rest
 }: DataGridProps<T>) => {
   const theme = getTheme(variant);
+
+  // ===== Deprecation Warnings =====
+  React.useEffect(() => {
+    if (process.env.NODE_ENV !== 'production') {
+      if (endpoint) {
+        console.warn(
+          '[@reactorui/datagrid] `endpoint` prop is deprecated and will be removed in the next major version. ' +
+            'Use controlled mode instead: fetch data in your parent component and pass via `data` prop. ' +
+            'See migration guide: https://github.com/reactorui/datagrid#migration'
+        );
+      }
+      if (httpConfig) {
+        console.warn(
+          '[@reactorui/datagrid] `httpConfig` prop is deprecated and will be removed in the next major version. ' +
+            'Use controlled mode instead.'
+        );
+      }
+      if (serverPageSize) {
+        console.warn(
+          '[@reactorui/datagrid] `serverPageSize` prop is deprecated. Use `pageSize` prop instead.'
+        );
+      }
+      if (onDataLoad) {
+        console.warn(
+          '[@reactorui/datagrid] `onDataLoad` callback is deprecated and will be removed in the next major version. ' +
+            'Handle data loading in your parent component.'
+        );
+      }
+      if (onDataError) {
+        console.warn(
+          '[@reactorui/datagrid] `onDataError` callback is deprecated. Use the `error` prop instead.'
+        );
+      }
+      if (onLoadingStateChange) {
+        console.warn(
+          '[@reactorui/datagrid] `onLoadingStateChange` callback is deprecated. Use the `loadingState` prop instead.'
+        );
+      }
+      // Warn if filter callbacks provided but filterMode is 'client'
+      if (filterMode === 'client' && (onApplyFilter || onRemoveFilter || onClearFilters)) {
+        console.warn(
+          '[@reactorui/datagrid] Filter callbacks (onApplyFilter, onRemoveFilter, onClearFilters) are provided but ' +
+            '`filterMode` is "client" (default). These callbacks will NOT be fired. ' +
+            'Set `filterMode="server"` or `filterMode="both"` to enable filter callbacks.'
+        );
+      }
+    }
+  }, []); // Run once on mount
 
   // ===== Normalize Loading State =====
   // If simple `loading` is passed, convert to loadingState.data
@@ -150,6 +217,7 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
     totalRecords: externalTotalRecords,
     currentPage: externalCurrentPage,
     loading: isDataLoading,
+    filterMode,
     onPageChange,
     onPageSizeChange,
     onSortChange,
@@ -324,7 +392,8 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
                 className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors duration-150 flex items-center justify-center"
               >
                 <svg
-                  className={`w-4 h-4 ${isRefreshLoading ? 'animate-spin' : ''}`}
+                  className="w-4 h-4"
+                  style={isRefreshLoading ? { animation: 'spin 1s linear infinite' } : undefined}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
