@@ -329,25 +329,10 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
       }
       {...rest}
     >
-      {/* Row 1: Filters - Fixed at top when scrollable */}
-      {enableFilters && (
-        <div className="p-4 pb-2 flex-shrink-0">
-          <FilterControls
-            columns={columns}
-            activeFilters={activeFilters}
-            onApplyFilter={addFilter}
-            onRemoveFilter={removeFilter}
-            onClearFilters={clearFilters}
-            disabled={isDataLoading}
-            filterLoading={isFilterLoading}
-          />
-        </div>
-      )}
-
-      {/* Row 2: Controls - Fixed at top when scrollable */}
-      <div className="px-4 pb-4 flex-shrink-0">
+      {/* Controls Row - Fixed at top when scrollable */}
+      <div className="px-4 py-4 flex-shrink-0">
         <div className="flex justify-between items-center gap-4">
-          {/* Show X entries */}
+          {/* Left: Show X entries + Filter icon */}
           <div className="flex items-center gap-2 flex-shrink-0">
             <span className="text-sm text-gray-700 dark:text-gray-300">Show</span>
             <select
@@ -363,9 +348,22 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
               ))}
             </select>
             <span className="text-sm text-gray-700 dark:text-gray-300">entries</span>
+
+            {/* Filter Icon */}
+            {enableFilters && (
+              <FilterControls
+                columns={columns}
+                activeFilters={activeFilters}
+                onApplyFilter={addFilter}
+                onRemoveFilter={removeFilter}
+                onClearFilters={clearFilters}
+                disabled={isDataLoading}
+                filterLoading={isFilterLoading}
+              />
+            )}
           </div>
 
-          {/* Search, Refresh, Delete */}
+          {/* Right: Search, Refresh, Delete */}
           <div className="flex items-center gap-2 flex-shrink-0">
             {enableSearch && (
               <div className="w-64 relative">

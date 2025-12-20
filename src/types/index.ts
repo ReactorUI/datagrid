@@ -231,9 +231,9 @@ export interface DataGridProps<T = BaseRowData>
    * Filter behavior mode:
    * - 'client' (default): Filters data locally, no onApplyFilter callback fired
    * - 'server': Fires onApplyFilter callback only, no local filtering
-   * - 'both': Filters locally AND fires callback
+   * - 'client&server': Filters locally AND fires callback
    */
-  filterMode?: 'client' | 'server' | 'both';
+  filterMode?: 'client' | 'server' | 'client&server';
 
   // ===== PAGINATION =====
   pageSize?: number;

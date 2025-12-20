@@ -276,12 +276,19 @@ describe('DataGrid Delete Events', () => {
 // =============================================================================
 
 describe('DataGrid Filter Callbacks', () => {
+  const openFilterPopover = () => {
+    const filterButton = screen.getByTitle(/filter/i);
+    fireEvent.click(filterButton);
+  };
+
   it('does NOT call onApplyFilter in client mode (default)', async () => {
     const onApplyFilter = jest.fn();
     render(<DataGrid data={testData} enableFilters={true} onApplyFilter={onApplyFilter} />);
 
+    openFilterPopover();
+
     const selects = screen.getAllByRole('combobox');
-    fireEvent.change(selects[0], { target: { value: 'name' } });
+    fireEvent.change(selects[1], { target: { value: 'name' } }); // First combobox is page size
 
     const valueInput = screen.getByPlaceholderText('Enter value');
     fireEvent.change(valueInput, { target: { value: 'John' } });
@@ -305,8 +312,10 @@ describe('DataGrid Filter Callbacks', () => {
       />
     );
 
+    openFilterPopover();
+
     const selects = screen.getAllByRole('combobox');
-    fireEvent.change(selects[0], { target: { value: 'name' } });
+    fireEvent.change(selects[1], { target: { value: 'name' } });
 
     const valueInput = screen.getByPlaceholderText('Enter value');
     fireEvent.change(valueInput, { target: { value: 'John' } });
@@ -325,19 +334,21 @@ describe('DataGrid Filter Callbacks', () => {
     });
   });
 
-  it('calls onApplyFilter when filterMode is both', async () => {
+  it('calls onApplyFilter when filterMode is client&server', async () => {
     const onApplyFilter = jest.fn();
     render(
       <DataGrid
         data={testData}
         enableFilters={true}
-        filterMode="both"
+        filterMode="client&server"
         onApplyFilter={onApplyFilter}
       />
     );
 
+    openFilterPopover();
+
     const selects = screen.getAllByRole('combobox');
-    fireEvent.change(selects[0], { target: { value: 'name' } });
+    fireEvent.change(selects[1], { target: { value: 'name' } });
 
     const valueInput = screen.getByPlaceholderText('Enter value');
     fireEvent.change(valueInput, { target: { value: 'John' } });
@@ -360,14 +371,19 @@ describe('DataGrid Filter Callbacks', () => {
       />
     );
 
+    openFilterPopover();
+
     // Add a filter first
     const selects = screen.getAllByRole('combobox');
-    fireEvent.change(selects[0], { target: { value: 'name' } });
+    fireEvent.change(selects[1], { target: { value: 'name' } });
 
     const valueInput = screen.getByPlaceholderText('Enter value');
     fireEvent.change(valueInput, { target: { value: 'John' } });
 
     fireEvent.click(screen.getByRole('button', { name: /apply filter/i }));
+
+    // Re-open popover (it closes after apply)
+    openFilterPopover();
 
     // Clear all
     fireEvent.click(screen.getByRole('button', { name: /clear all/i }));
@@ -388,14 +404,19 @@ describe('DataGrid Filter Callbacks', () => {
       />
     );
 
+    openFilterPopover();
+
     // Add a filter
     const selects = screen.getAllByRole('combobox');
-    fireEvent.change(selects[0], { target: { value: 'name' } });
+    fireEvent.change(selects[1], { target: { value: 'name' } });
 
     const valueInput = screen.getByPlaceholderText('Enter value');
     fireEvent.change(valueInput, { target: { value: 'John' } });
 
     fireEvent.click(screen.getByRole('button', { name: /apply filter/i }));
+
+    // Re-open popover to see active filters
+    openFilterPopover();
 
     // Wait for filter tag and remove it
     await waitFor(() => {
@@ -410,11 +431,13 @@ describe('DataGrid Filter Callbacks', () => {
     });
   });
 
-  it('displays active filter tags', async () => {
+  it('shows filter count badge when filters are active', async () => {
     render(<DataGrid data={testData} enableFilters={true} />);
 
+    openFilterPopover();
+
     const selects = screen.getAllByRole('combobox');
-    fireEvent.change(selects[0], { target: { value: 'name' } });
+    fireEvent.change(selects[1], { target: { value: 'name' } });
 
     const valueInput = screen.getByPlaceholderText('Enter value');
     fireEvent.change(valueInput, { target: { value: 'John' } });
@@ -422,8 +445,8 @@ describe('DataGrid Filter Callbacks', () => {
     fireEvent.click(screen.getByRole('button', { name: /apply filter/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/active filters/i)).toBeInTheDocument();
-      expect(screen.getByText(/name eq "John"/i)).toBeInTheDocument();
+      // Badge should show "1"
+      expect(screen.getByText('1')).toBeInTheDocument();
     });
   });
 
@@ -433,9 +456,11 @@ describe('DataGrid Filter Callbacks', () => {
     expect(screen.getByText('John Doe')).toBeInTheDocument();
     expect(screen.getByText('Jane Smith')).toBeInTheDocument();
 
+    openFilterPopover();
+
     const selects = screen.getAllByRole('combobox');
-    fireEvent.change(selects[0], { target: { value: 'name' } });
-    fireEvent.change(selects[1], { target: { value: 'contains' } });
+    fireEvent.change(selects[1], { target: { value: 'name' } });
+    fireEvent.change(selects[2], { target: { value: 'contains' } });
 
     const valueInput = screen.getByPlaceholderText('Enter value');
     fireEvent.change(valueInput, { target: { value: 'John' } });
@@ -454,9 +479,11 @@ describe('DataGrid Filter Callbacks', () => {
     expect(screen.getByText('John Doe')).toBeInTheDocument();
     expect(screen.getByText('Jane Smith')).toBeInTheDocument();
 
+    openFilterPopover();
+
     const selects = screen.getAllByRole('combobox');
-    fireEvent.change(selects[0], { target: { value: 'name' } });
-    fireEvent.change(selects[1], { target: { value: 'contains' } });
+    fireEvent.change(selects[1], { target: { value: 'name' } });
+    fireEvent.change(selects[2], { target: { value: 'contains' } });
 
     const valueInput = screen.getByPlaceholderText('Enter value');
     fireEvent.change(valueInput, { target: { value: 'John' } });
@@ -470,20 +497,22 @@ describe('DataGrid Filter Callbacks', () => {
     });
   });
 
-  it('filters data AND fires callback in both mode', async () => {
+  it('filters data AND fires callback in client&server mode', async () => {
     const onApplyFilter = jest.fn();
     render(
       <DataGrid
         data={testData}
         enableFilters={true}
-        filterMode="both"
+        filterMode="client&server"
         onApplyFilter={onApplyFilter}
       />
     );
 
+    openFilterPopover();
+
     const selects = screen.getAllByRole('combobox');
-    fireEvent.change(selects[0], { target: { value: 'name' } });
-    fireEvent.change(selects[1], { target: { value: 'contains' } });
+    fireEvent.change(selects[1], { target: { value: 'name' } });
+    fireEvent.change(selects[2], { target: { value: 'contains' } });
 
     const valueInput = screen.getByPlaceholderText('Enter value');
     fireEvent.change(valueInput, { target: { value: 'John' } });

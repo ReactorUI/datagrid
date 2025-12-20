@@ -137,10 +137,11 @@ describe('DataGrid Loading States', () => {
     expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
-  it('disables Apply Filter button when loadingState.filter is true', () => {
+  it('disables filter button when loadingState.filter is true', () => {
     render(<DataGrid data={testData} enableFilters={true} loadingState={{ filter: true }} />);
-    const applyButton = screen.getByRole('button', { name: /apply filter/i });
-    expect(applyButton).toBeDisabled();
+    // Filter icon button should be disabled
+    const filterButton = screen.getByTitle(/filter/i);
+    expect(filterButton).toBeDisabled();
   });
 
   it('disables search input when loadingState.data is true', () => {

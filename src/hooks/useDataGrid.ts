@@ -21,9 +21,9 @@ interface UseDataGridProps<T> {
    * Filter behavior mode:
    * - 'client' (default): Filters locally, no onApplyFilter callback
    * - 'server': No local filtering, only fires onApplyFilter
-   * - 'both': Filters locally AND fires onApplyFilter
+   * - 'client&server': Filters locally AND fires onApplyFilter
    */
-  filterMode?: 'client' | 'server' | 'both';
+  filterMode?: 'client' | 'server' | 'client&server';
 
   // Callbacks
   onPageChange?: (page: number, info: PaginationInfo) => void;
@@ -94,7 +94,7 @@ export const useDataGrid = <T extends BaseRowData>({
   // ===== Data Processing (Client-side only) =====
   const processedData = useMemo(() => {
     // Determine if we should filter locally
-    const shouldFilterLocally = filterMode === 'client' || filterMode === 'both';
+    const shouldFilterLocally = filterMode === 'client' || filterMode === 'client&server';
 
     if (isControlled && filterMode === 'server') {
       // Server mode with controlled data - parent handles everything, just sort
@@ -224,7 +224,7 @@ export const useDataGrid = <T extends BaseRowData>({
       setActiveFilters(newFilters);
       if (!isControlled) setInternalPage(1);
 
-      // Fire callbacks only for 'server' or 'both' modes
+      // Fire callbacks only for 'server' or 'client&server' modes
       if (filterMode !== 'client') {
         onApplyFilter?.(fullFilter, newFilters);
         onFilterChange?.(newFilters);
@@ -241,7 +241,7 @@ export const useDataGrid = <T extends BaseRowData>({
       setActiveFilters(newFilters);
       if (!isControlled) setInternalPage(1);
 
-      // Fire callbacks only for 'server' or 'both' modes
+      // Fire callbacks only for 'server' or 'client&server' modes
       if (filterMode !== 'client') {
         if (removed) onRemoveFilter?.(removed, newFilters);
         onFilterChange?.(newFilters);
@@ -254,7 +254,7 @@ export const useDataGrid = <T extends BaseRowData>({
     setActiveFilters([]);
     if (!isControlled) setInternalPage(1);
 
-    // Fire callbacks only for 'server' or 'both' modes
+    // Fire callbacks only for 'server' or 'client&server' modes
     if (filterMode !== 'client') {
       onClearFilters?.();
       onFilterChange?.([]);

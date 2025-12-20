@@ -372,22 +372,22 @@ For large datasets, enable scrollable body with fixed headers:
 
 ### Features
 
-| Prop                 | Type                             | Default    | Description                 |
-| -------------------- | -------------------------------- | ---------- | --------------------------- |
-| `enableSearch`       | `boolean`                        | `true`     | Show search input           |
-| `enableSorting`      | `boolean`                        | `true`     | Enable column sorting       |
-| `enableFilters`      | `boolean`                        | `true`     | Show filter controls        |
-| `enableSelection`    | `boolean`                        | `true`     | Show row checkboxes         |
-| `enableDelete`       | `boolean`                        | `false`    | Show delete button          |
-| `enableRefresh`      | `boolean`                        | `false`    | Show refresh button         |
-| `deleteConfirmation` | `boolean`                        | `false`    | Confirm before delete       |
-| `filterMode`         | `'client' \| 'server' \| 'both'` | `'client'` | Filter behavior (see below) |
+| Prop                 | Type                                      | Default    | Description                 |
+| -------------------- | ----------------------------------------- | ---------- | --------------------------- |
+| `enableSearch`       | `boolean`                                 | `true`     | Show search input           |
+| `enableSorting`      | `boolean`                                 | `true`     | Enable column sorting       |
+| `enableFilters`      | `boolean`                                 | `true`     | Show filter controls        |
+| `enableSelection`    | `boolean`                                 | `true`     | Show row checkboxes         |
+| `enableDelete`       | `boolean`                                 | `false`    | Show delete button          |
+| `enableRefresh`      | `boolean`                                 | `false`    | Show refresh button         |
+| `deleteConfirmation` | `boolean`                                 | `false`    | Confirm before delete       |
+| `filterMode`         | `'client' \| 'server' \| 'client&server'` | `'client'` | Filter behavior (see below) |
 
 **filterMode options:**
 
 - `'client'` - Filters locally, no callbacks fired
 - `'server'` - Fires callbacks only, no local filtering
-- `'both'` - Filters locally AND fires callbacks
+- `'client&server'` - Filters locally AND fires callbacks
 
 ### Pagination
 
@@ -417,7 +417,7 @@ For large datasets, enable scrollable body with fixed headers:
 | `onCellClick`           | `(value, row, column, event) => void` | Cell clicked         |
 | `onBulkDelete`          | `(rows) => void`                      | Delete clicked       |
 
-_\* Filter callbacks only fire when `filterMode="server"` or `filterMode="both"`_
+_\* Filter callbacks only fire when `filterMode="server"` or `filterMode="client&server"`_
 
 ## Column Configuration
 
