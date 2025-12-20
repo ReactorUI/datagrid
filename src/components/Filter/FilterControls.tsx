@@ -1,6 +1,7 @@
 // File: src/components/Filter/FilterControls.tsx
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Column, ActiveFilter, FilterOperator } from '../../types';
 
 // ============================================================================
@@ -67,20 +68,18 @@ const DEFAULT_OPERATORS: OperatorOption[] = [{ value: 'eq', label: 'equals' }];
 
 const styles = {
   select:
-    'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400 disabled:cursor-not-allowed',
+    'w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400 disabled:cursor-not-allowed',
   input:
-    'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:cursor-not-allowed',
+    'w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:cursor-not-allowed',
   inputDisabled:
-    'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed',
+    'w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed',
   buttonPrimary:
-    'w-full px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white text-sm rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:text-gray-500 dark:disabled:text-gray-400 disabled:cursor-not-allowed transition-colors duration-150',
-  buttonSecondary:
-    'w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150',
+    'w-full px-4 py-2.5 bg-blue-600 dark:bg-blue-700 text-white text-sm font-medium rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:text-gray-500 dark:disabled:text-gray-400 disabled:cursor-not-allowed transition-colors duration-150',
+  label: 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5',
   filterTag:
-    'flex items-center justify-between gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-md text-sm',
+    'inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-md text-xs font-medium whitespace-nowrap',
   filterTagRemove:
-    'text-blue-600 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-100 focus:outline-none transition-colors duration-150',
-  label: 'block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1',
+    'ml-0.5 text-blue-600 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-100 focus:outline-none',
 };
 
 // ============================================================================
@@ -121,11 +120,45 @@ export const FilterControls = <T,>({
   const [filterColumn, setFilterColumn] = useState('');
   const [filterOperator, setFilterOperator] = useState<FilterOperator>('eq');
   const [filterValue, setFilterValue] = useState('');
-  const popoverRef = useRef<HTMLDivElement>(null);
+  const [popoverPosition, setPopoverPosition] = useState({ top: 0, left: 0 });
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
 
   const isDisabled = disabled || filterLoading;
   const filterCount = activeFilters.length;
+
+  // Calculate popover position relative to viewport with edge detection
+  const updatePopoverPosition = useCallback(() => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const popoverWidth = 320; // w-80
+      const viewportWidth = window.innerWidth;
+
+      // Adjust left position if popover would overflow right edge
+      let left = rect.left;
+      if (left + popoverWidth > viewportWidth - 16) {
+        left = Math.max(16, viewportWidth - popoverWidth - 16);
+      }
+
+      setPopoverPosition({
+        top: rect.bottom + 8,
+        left,
+      });
+    }
+  }, []);
+
+  // Update position when opening
+  useEffect(() => {
+    if (isOpen) {
+      updatePopoverPosition();
+      window.addEventListener('scroll', updatePopoverPosition, true);
+      window.addEventListener('resize', updatePopoverPosition);
+      return () => {
+        window.removeEventListener('scroll', updatePopoverPosition, true);
+        window.removeEventListener('resize', updatePopoverPosition);
+      };
+    }
+  }, [isOpen, updatePopoverPosition]);
 
   // Close on outside click
   useEffect(() => {
@@ -208,13 +241,6 @@ export const FilterControls = <T,>({
     isDisabled,
   ]);
 
-  const handleClear = useCallback(() => {
-    setFilterColumn('');
-    setFilterOperator('eq');
-    setFilterValue('');
-    onClearFilters();
-  }, [onClearFilters]);
-
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === 'Enter' && canApply && !isDisabled) {
@@ -268,8 +294,8 @@ export const FilterControls = <T,>({
   };
 
   return (
-    <div className="relative inline-block">
-      {/* Filter Button with Badge */}
+    <div className="flex items-center gap-2 min-w-0 flex-1">
+      {/* Filter Button */}
       <button
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
@@ -279,7 +305,7 @@ export const FilterControls = <T,>({
             ? `${filterCount} filter${filterCount === 1 ? '' : 's'} active`
             : 'Add filter'
         }
-        className="relative p-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
+        className="relative flex-shrink-0 p-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
       >
         <FilterIcon className="w-5 h-5" />
         {filterCount > 0 && (
@@ -289,114 +315,121 @@ export const FilterControls = <T,>({
         )}
       </button>
 
-      {/* Popover */}
-      {isOpen && (
+      {/* Active Filter Tags - Horizontal Scrollable */}
+      {activeFilters.length > 0 && (
         <div
-          ref={popoverRef}
-          className="absolute top-full left-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
+          className="flex-1 min-w-0 overflow-x-auto"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          <div className="p-4 space-y-4">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Filter</h3>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            {/* Column */}
-            <div>
-              <label className={styles.label}>Column</label>
-              <select
-                value={filterColumn}
-                onChange={(e) => handleColumnChange(e.target.value)}
-                disabled={isDisabled}
-                className={styles.select}
-              >
-                <option value="">Select column</option>
-                {filterableColumns.map((col) => (
-                  <option key={String(col.key)} value={String(col.key)}>
-                    {col.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Operator */}
-            <div>
-              <label className={styles.label}>Operator</label>
-              <select
-                value={filterOperator}
-                onChange={(e) => setFilterOperator(e.target.value as FilterOperator)}
-                disabled={isDisabled || !filterColumn}
-                className={styles.select}
-              >
-                {operatorOptions.map((op) => (
-                  <option key={op.value} value={op.value}>
-                    {op.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Value */}
-            <div>
-              <label className={styles.label}>Value</label>
-              {renderValueInput()}
-            </div>
-
-            {/* Apply Button */}
-            <button
-              onClick={handleApply}
-              disabled={isDisabled || !canApply}
-              className={styles.buttonPrimary}
-            >
-              Apply Filter
-            </button>
-
-            {/* Active Filters */}
-            {activeFilters.length > 0 && (
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-2">
-                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  Active Filters
-                </div>
-                <div className="space-y-2 max-h-32 overflow-y-auto">
-                  {activeFilters.map((filter, index) => (
-                    <div key={`${filter.column}-${index}`} className={styles.filterTag}>
-                      <span className="truncate">{filter.label}</span>
-                      <button
-                        onClick={() => onRemoveFilter(index)}
-                        disabled={isDisabled}
-                        className={styles.filterTagRemove}
-                        aria-label={`Remove filter: ${filter.label}`}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
+          <div className="flex items-center gap-1.5 py-0.5">
+            {activeFilters.map((filter, index) => (
+              <span key={`${filter.column}-${index}`} className={styles.filterTag}>
+                {filter.label}
                 <button
-                  onClick={handleClear}
+                  onClick={() => onRemoveFilter(index)}
                   disabled={isDisabled}
-                  className={styles.buttonSecondary}
+                  className={styles.filterTagRemove}
+                  aria-label={`Remove filter: ${filter.label}`}
                 >
-                  Clear All
+                  ×
                 </button>
-              </div>
+              </span>
+            ))}
+            {activeFilters.length > 1 && (
+              <button
+                onClick={onClearFilters}
+                disabled={isDisabled}
+                className="flex-shrink-0 text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 whitespace-nowrap px-2 py-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+              >
+                Clear all
+              </button>
             )}
           </div>
         </div>
       )}
+
+      {/* Popover - Rendered via Portal to escape parent overflow */}
+      {isOpen &&
+        createPortal(
+          <div
+            ref={popoverRef}
+            className="fixed w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700"
+            style={{ top: popoverPosition.top, left: popoverPosition.left, zIndex: 99999 }}
+          >
+            <div className="p-5 space-y-4">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                  Add Filter
+                </h3>
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Column */}
+              <div>
+                <label className={styles.label}>Column</label>
+                <select
+                  value={filterColumn}
+                  onChange={(e) => handleColumnChange(e.target.value)}
+                  disabled={isDisabled}
+                  className={styles.select}
+                >
+                  <option value="">Select column</option>
+                  {filterableColumns.map((col) => (
+                    <option key={String(col.key)} value={String(col.key)}>
+                      {col.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Operator */}
+              <div>
+                <label className={styles.label}>Operator</label>
+                <select
+                  value={filterOperator}
+                  onChange={(e) => setFilterOperator(e.target.value as FilterOperator)}
+                  disabled={isDisabled || !filterColumn}
+                  className={styles.select}
+                >
+                  {operatorOptions.map((op) => (
+                    <option key={op.value} value={op.value}>
+                      {op.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Value */}
+              <div>
+                <label className={styles.label}>Value</label>
+                {renderValueInput()}
+              </div>
+
+              {/* Apply Button */}
+              <button
+                onClick={handleApply}
+                disabled={isDisabled || !canApply}
+                className={styles.buttonPrimary}
+              >
+                Apply Filter
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };
