@@ -354,7 +354,12 @@ export const FilterControls = <T,>({
           <div
             ref={popoverRef}
             className="fixed w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700"
-            style={{ top: popoverPosition.top, left: popoverPosition.left, zIndex: 99999 }}
+            style={{
+              top: popoverPosition.top,
+              padding: 14,
+              left: popoverPosition.left,
+              zIndex: 99999,
+            }}
           >
             <div className="p-5 space-y-4">
               {/* Header */}
