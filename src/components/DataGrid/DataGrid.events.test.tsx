@@ -371,22 +371,27 @@ describe('DataGrid Filter Callbacks', () => {
       />
     );
 
+    // Add first filter
     openFilterPopover();
-
-    // Add a filter first
-    const selects = screen.getAllByRole('combobox');
+    let selects = screen.getAllByRole('combobox');
     fireEvent.change(selects[1], { target: { value: 'name' } });
-
-    const valueInput = screen.getByPlaceholderText('Enter value');
+    let valueInput = screen.getByPlaceholderText('Enter value');
     fireEvent.change(valueInput, { target: { value: 'John' } });
-
     fireEvent.click(screen.getByRole('button', { name: /apply filter/i }));
 
-    // Re-open popover (it closes after apply)
+    // Add second filter (Clear All only shows with 2+ filters)
     openFilterPopover();
+    selects = screen.getAllByRole('combobox');
+    fireEvent.change(selects[1], { target: { value: 'email' } });
+    valueInput = screen.getByPlaceholderText('Enter value');
+    fireEvent.change(valueInput, { target: { value: 'test' } });
+    fireEvent.click(screen.getByRole('button', { name: /apply filter/i }));
 
-    // Clear all
-    fireEvent.click(screen.getByRole('button', { name: /clear all/i }));
+    // Clear all (now inline, not in popover)
+    await waitFor(() => {
+      expect(screen.getByText(/clear all/i)).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText(/clear all/i));
 
     await waitFor(() => {
       expect(onClearFilters).toHaveBeenCalled();
@@ -415,12 +420,9 @@ describe('DataGrid Filter Callbacks', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /apply filter/i }));
 
-    // Re-open popover to see active filters
-    openFilterPopover();
-
-    // Wait for filter tag and remove it
+    // Filter tags are now inline (not in popover), find remove button
     await waitFor(() => {
-      expect(screen.getByText(/active filters/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /remove filter/i })).toBeInTheDocument();
     });
 
     const removeButton = screen.getByRole('button', { name: /remove filter/i });
