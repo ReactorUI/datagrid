@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Column, ActiveFilter, FilterOperator } from '../../types';
+import { Theme } from '../../themes';
 
 // ============================================================================
 // Types
@@ -16,6 +17,7 @@ interface FilterControlsProps<T> {
   onClearFilters: () => void;
   disabled?: boolean;
   filterLoading?: boolean;
+  theme: Theme;
 }
 
 interface OperatorOption {
@@ -63,26 +65,6 @@ const OPERATORS: Record<string, OperatorOption[]> = {
 const DEFAULT_OPERATORS: OperatorOption[] = [{ value: 'eq', label: 'equals' }];
 
 // ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  select:
-    'w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:text-gray-500 dark:disabled:text-gray-400 disabled:cursor-not-allowed',
-  input:
-    'w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:cursor-not-allowed',
-  inputDisabled:
-    'w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed',
-  buttonPrimary:
-    'w-full px-4 py-2.5 bg-blue-600 dark:bg-blue-700 text-white text-sm font-medium rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:text-gray-500 dark:disabled:text-gray-400 disabled:cursor-not-allowed transition-colors duration-150',
-  label: 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5',
-  filterTag:
-    'inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-md text-xs font-medium whitespace-nowrap',
-  filterTagRemove:
-    'ml-0.5 text-blue-600 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-100 focus:outline-none',
-};
-
-// ============================================================================
 // Filter Icon
 // ============================================================================
 
@@ -115,6 +97,7 @@ export const FilterControls = <T,>({
   onClearFilters,
   disabled = false,
   filterLoading = false,
+  theme,
 }: FilterControlsProps<T>) => {
   const [isOpen, setIsOpen] = useState(false);
   const [filterColumn, setFilterColumn] = useState('');
@@ -252,6 +235,9 @@ export const FilterControls = <T,>({
 
   // Render value input based on data type
   const renderValueInput = () => {
+    const inputClass = `w-full px-3 py-2.5 ${theme.searchInput}`;
+    const disabledClass = `w-full px-3 py-2.5 ${theme.select} opacity-50 cursor-not-allowed`;
+
     if (!selectedColumn) {
       return (
         <input
@@ -259,7 +245,7 @@ export const FilterControls = <T,>({
           disabled
           value=""
           placeholder="Select column first"
-          className={styles.inputDisabled}
+          className={disabledClass}
         />
       );
     }
@@ -270,13 +256,13 @@ export const FilterControls = <T,>({
         setFilterValue(e.target.value),
       onKeyDown: handleKeyDown,
       disabled: isDisabled,
-      className: styles.input,
+      className: inputClass,
     };
 
     switch (selectedColumn.dataType) {
       case 'boolean':
         return (
-          <select {...commonProps} className={styles.select}>
+          <select {...commonProps} className={`w-full px-3 py-2.5 ${theme.select}`}>
             <option value="">Select value</option>
             <option value="true">True</option>
             <option value="false">False</option>
@@ -305,7 +291,7 @@ export const FilterControls = <T,>({
             ? `${filterCount} filter${filterCount === 1 ? '' : 's'} active`
             : 'Add filter'
         }
-        className="relative flex-shrink-0 p-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
+        className={`relative flex-shrink-0 p-2 ${theme.text} ${theme.buttonSecondary.replace(/px-3 py-2/g, '')} rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150`}
       >
         <FilterIcon className="w-5 h-5" />
         {filterCount > 0 && (
@@ -323,12 +309,12 @@ export const FilterControls = <T,>({
         >
           <div className="flex items-center gap-1.5 py-0.5">
             {activeFilters.map((filter, index) => (
-              <span key={`${filter.column}-${index}`} className={styles.filterTag}>
+              <span key={`${filter.column}-${index}`} className={theme.filterTag}>
                 {filter.label}
                 <button
                   onClick={() => onRemoveFilter(index)}
                   disabled={isDisabled}
-                  className={styles.filterTagRemove}
+                  className={theme.filterTagRemove}
                   aria-label={`Remove filter: ${filter.label}`}
                 >
                   ×
@@ -339,7 +325,7 @@ export const FilterControls = <T,>({
               <button
                 onClick={onClearFilters}
                 disabled={isDisabled}
-                className="flex-shrink-0 text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 whitespace-nowrap px-2 py-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                className={`flex-shrink-0 text-xs ${theme.textError} whitespace-nowrap px-2 py-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors`}
               >
                 Clear all
               </button>
@@ -353,7 +339,7 @@ export const FilterControls = <T,>({
         createPortal(
           <div
             ref={popoverRef}
-            className="fixed w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700"
+            className={`fixed w-80 ${theme.filterDropdown}`}
             style={{
               top: popoverPosition.top,
               padding: 14,
@@ -364,12 +350,14 @@ export const FilterControls = <T,>({
             <div className="p-5 space-y-4">
               {/* Header */}
               <div className="flex items-center justify-between">
-                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                <h3
+                  className={`text-base font-semibold ${theme.text.replace('text-gray-700', 'text-gray-900').replace('dark:text-zinc-300', 'dark:text-zinc-100')}`}
+                >
                   Add Filter
                 </h3>
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  className={`p-1 ${theme.textMuted} hover:${theme.text} rounded-md ${theme.buttonSecondary.replace(/px-3 py-2 bg-\S+ /g, '')} transition-colors`}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
@@ -384,12 +372,12 @@ export const FilterControls = <T,>({
 
               {/* Column */}
               <div>
-                <label className={styles.label}>Column</label>
+                <label className={`block text-sm font-medium ${theme.text} mb-1.5`}>Column</label>
                 <select
                   value={filterColumn}
                   onChange={(e) => handleColumnChange(e.target.value)}
                   disabled={isDisabled}
-                  className={styles.select}
+                  className={`w-full px-3 py-2.5 ${theme.select}`}
                 >
                   <option value="">Select column</option>
                   {filterableColumns.map((col) => (
@@ -402,12 +390,12 @@ export const FilterControls = <T,>({
 
               {/* Operator */}
               <div>
-                <label className={styles.label}>Operator</label>
+                <label className={`block text-sm font-medium ${theme.text} mb-1.5`}>Operator</label>
                 <select
                   value={filterOperator}
                   onChange={(e) => setFilterOperator(e.target.value as FilterOperator)}
                   disabled={isDisabled || !filterColumn}
-                  className={styles.select}
+                  className={`w-full px-3 py-2.5 ${theme.select}`}
                 >
                   {operatorOptions.map((op) => (
                     <option key={op.value} value={op.value}>
@@ -419,7 +407,7 @@ export const FilterControls = <T,>({
 
               {/* Value */}
               <div>
-                <label className={styles.label}>Value</label>
+                <label className={`block text-sm font-medium ${theme.text} mb-1.5`}>Value</label>
                 {renderValueInput()}
               </div>
 
@@ -427,7 +415,7 @@ export const FilterControls = <T,>({
               <button
                 onClick={handleApply}
                 disabled={isDisabled || !canApply}
-                className={styles.buttonPrimary}
+                className={`w-full px-4 py-2.5 ${theme.button} font-medium`}
               >
                 Apply Filter
               </button>

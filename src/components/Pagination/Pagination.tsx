@@ -1,4 +1,7 @@
+// File: src/components/Pagination/Pagination.tsx
+
 import React from 'react';
+import { Theme } from '../../themes';
 
 interface PaginationProps {
   currentPage: number;
@@ -12,6 +15,8 @@ interface PaginationProps {
   onPageSizeChange: (size: number) => void;
   hasNext: boolean;
   hasPrevious: boolean;
+  disabled?: boolean;
+  theme: Theme;
 }
 
 export const Pagination: React.FC<PaginationProps> = ({
@@ -26,33 +31,40 @@ export const Pagination: React.FC<PaginationProps> = ({
   onPageSizeChange,
   hasNext,
   hasPrevious,
+  disabled = false,
+  theme,
 }) => {
   const handlePageChange = (page: number) => {
-    if (page >= 1 && page <= totalPages) {
+    if (page >= 1 && page <= totalPages && !disabled) {
       onPageChange(page);
     }
   };
 
   const handlePageSizeChange = (newSize: number) => {
-    onPageSizeChange(newSize);
+    if (!disabled) {
+      onPageSizeChange(newSize);
+    }
   };
 
   return (
-    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-4 py-3 bg-white border-t border-gray-200">
+    <div
+      className={`flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ${theme.pagination}`}
+    >
       {/* Records info */}
-      <div className="text-sm text-gray-700">
-        Showing {displayStart}-{displayEnd} of {totalRecords} records
+      <div className={theme.paginationText}>
+        Showing {displayStart}-{displayEnd} of {totalRecords.toLocaleString()} records
       </div>
 
       {/* Page size and navigation */}
       <div className="flex items-center gap-6">
         {/* Page size selector */}
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-700">Show:</span>
+          <span className={theme.paginationText}>Show:</span>
           <select
             value={pageSize}
             onChange={(e) => handlePageSizeChange(parseInt(e.target.value))}
-            className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={disabled}
+            className={theme.select}
           >
             {pageSizeOptions.map((size) => (
               <option key={size} value={size}>
@@ -60,27 +72,27 @@ export const Pagination: React.FC<PaginationProps> = ({
               </option>
             ))}
           </select>
-          <span className="text-sm text-gray-700">entries</span>
+          <span className={theme.paginationText}>entries</span>
         </div>
 
         {/* Navigation */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => handlePageChange(currentPage - 1)}
-            disabled={!hasPrevious}
-            className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!hasPrevious || disabled}
+            className={theme.paginationButton}
           >
             Previous
           </button>
 
-          <span className="text-sm text-gray-700">
-            Page {currentPage} of {totalPages}
+          <span className={`${theme.paginationText} px-2`}>
+            Page {currentPage} {totalPages > 0 && `of ${totalPages}`}
           </span>
 
           <button
             onClick={() => handlePageChange(currentPage + 1)}
-            disabled={!hasNext}
-            className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!hasNext || disabled}
+            className={theme.paginationButton}
           >
             Next
           </button>

@@ -31,7 +31,7 @@ export const TableHeader = <T,>({
     if (sortConfig.column !== columnKey) {
       return (
         <svg
-          className="w-4 h-4 text-gray-400 dark:text-gray-500"
+          className={`w-4 h-4 ${theme.textMuted}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -74,6 +74,45 @@ export const TableHeader = <T,>({
   // Sticky styles
   const stickyClass = sticky ? 'sticky top-0 z-10' : '';
 
+  // Extract background from header theme for hover
+  const headerBg = theme.header.match(/(?:dark:)?bg-\S+/g) || [];
+  const hoverBg =
+    headerBg.length > 0
+      ? headerBg
+          .map((bg) => {
+            // Convert bg-gray-50 -> hover:bg-gray-100, dark:bg-gray-700 -> dark:hover:bg-gray-600
+            if (bg.startsWith('dark:')) {
+              const color = bg.replace('dark:bg-', '');
+              const parts = color.match(/(\w+)-(\d+)/);
+              if (parts) {
+                const newShade = Math.max(parseInt(parts[2]) - 100, 600);
+                return `dark:hover:bg-${parts[1]}-${newShade}`;
+              }
+              return `dark:hover:bg-${color}`;
+            } else {
+              const color = bg.replace('bg-', '');
+              const parts = color.match(/(\w+)-(\d+)/);
+              if (parts) {
+                const newShade = Math.min(parseInt(parts[2]) + 50, 200);
+                return `hover:bg-${parts[1]}-${newShade}`;
+              }
+              return `hover:bg-${color}`;
+            }
+          })
+          .join(' ')
+      : 'hover:bg-gray-100 dark:hover:bg-gray-600';
+
+  // Extract border from theme for checkbox
+  const borderColor =
+    theme.headerCell
+      .match(/(?:dark:)?border-\S+/g)
+      ?.filter((c) => !c.includes('border-r') && !c.includes('border-b'))?.[0] ||
+    'border-gray-300 dark:border-gray-600';
+
+  // Extract background for checkbox
+  const checkboxBg =
+    theme.table.match(/(?:dark:)?bg-\S+/g)?.join(' ') || 'bg-white dark:bg-gray-800';
+
   return (
     <thead className={`${theme.header} ${stickyClass}`}>
       <tr>
@@ -92,7 +131,7 @@ export const TableHeader = <T,>({
                 }
               }}
               onChange={(e) => onSelectAll?.(e.target.checked)}
-              className="w-4 h-4 text-blue-600 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 dark:focus:ring-blue-400"
+              className={`w-4 h-4 text-blue-600 ${checkboxBg} ${borderColor} rounded focus:ring-blue-500 dark:focus:ring-blue-400`}
               aria-label="Select all rows"
             />
           </th>
@@ -103,7 +142,7 @@ export const TableHeader = <T,>({
             role="columnheader"
             className={`${theme.headerCell} ${
               column.sortable && onSort
-                ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 select-none'
+                ? `cursor-pointer ${hoverBg} select-none transition-colors duration-150`
                 : ''
             }`}
             onClick={() => column.sortable && onSort && onSort(String(column.key))}

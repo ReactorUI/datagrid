@@ -1,6 +1,7 @@
 // File: src/types/index.ts
 
 import { ReactNode, HTMLAttributes } from 'react';
+import { Theme } from '../themes';
 
 // ============================================================================
 // Core Data Types
@@ -257,6 +258,27 @@ export interface DataGridProps<T = BaseRowData>
   className?: string;
   variant?: 'default' | 'striped' | 'bordered';
   size?: 'sm' | 'md' | 'lg';
+
+  /**
+   * Custom theme overrides. Merges with the variant theme.
+   * Use to customize colors, borders, backgrounds, etc.
+   *
+   * @example
+   * // Override specific properties
+   * <DataGrid
+   *   data={data}
+   *   theme={{
+   *     container: 'bg-white dark:bg-zinc-900 rounded-lg border border-zinc-700',
+   *     row: 'bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800',
+   *   }}
+   * />
+   *
+   * @example
+   * // Use createZincTheme for full dark mode compatibility
+   * import { createZincTheme } from '@reactorui/datagrid';
+   * <DataGrid data={data} theme={createZincTheme('default')} />
+   */
+  theme?: Partial<Theme>;
 
   // ===== PAGINATION EVENTS =====
   onPageChange?: OnPageChangeCallback;

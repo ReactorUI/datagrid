@@ -22,8 +22,8 @@ A high-performance, feature-rich React data grid component with TypeScript suppo
 - 🔍 **Advanced Filtering** - Type-aware filters with multiple operators (string, number, date, boolean)
 - 🔄 **Flexible Data Sources** - Works with any data fetching strategy (REST, GraphQL, local)
 - 📱 **Responsive Design** - Mobile-first with touch-friendly interactions
-- 🎨 **Customizable Theming** - Multiple built-in variants and custom styling
-- 🌙 **Dark Mode Ready** - Built-in dark mode support
+- 🎨 **Fully Customizable Theming** - Pass custom theme objects to match your design system
+- 🌙 **Dark Mode Ready** - Built-in dark mode support with zinc palette option
 - ♿ **Accessibility First** - WCAG compliant with keyboard navigation and ARIA labels
 - 🔧 **TypeScript Native** - Full type safety and comprehensive IntelliSense support
 - 🎯 **Rich Event System** - 20+ events covering every user interaction
@@ -118,6 +118,149 @@ function App() {
     />
   );
 }
+```
+
+## 🎨 Custom Theming
+
+The DataGrid supports full theme customization via the `theme` prop. You can override any part of the default theme to match your design system.
+
+### Theme Interface
+
+```tsx
+interface Theme {
+  // Container
+  container: string;
+
+  // Table
+  table: string;
+  header: string;
+  headerCell: string;
+  row: string;
+  cell: string;
+  selectedRow: string;
+
+  // Controls
+  searchInput: string;
+  select: string;
+  button: string;
+  buttonSecondary: string;
+  buttonDanger: string;
+
+  // Text
+  text: string;
+  textMuted: string;
+  textError: string;
+
+  // Pagination
+  pagination: string;
+  paginationButton: string;
+  paginationText: string;
+
+  // States
+  loadingSkeleton: string;
+  emptyState: string;
+  errorState: string;
+
+  // Filter
+  filterDropdown: string;
+  filterTag: string;
+  filterTagRemove: string;
+}
+```
+
+### Custom Theme Example
+
+```tsx
+import { DataGrid, Theme } from '@reactorui/datagrid';
+
+// Define your custom theme (partial overrides supported)
+const myTheme: Partial<Theme> = {
+  container: 'bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-700',
+  row: 'bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800',
+  cell: 'px-4 py-3 text-sm text-gray-900 dark:text-zinc-100 border-b dark:border-zinc-700',
+  searchInput:
+    'px-3 py-2 border dark:border-zinc-700 rounded-lg dark:bg-zinc-800 dark:text-zinc-100',
+  pagination:
+    'flex items-center justify-between px-4 py-3 dark:bg-zinc-900 border-t dark:border-zinc-700',
+};
+
+function App() {
+  return <DataGrid data={data} theme={myTheme} />;
+}
+```
+
+### Using createZincTheme Helper
+
+For projects using the `zinc` color palette (like Tailwind's neutral grays), use the built-in helper:
+
+```tsx
+import { DataGrid, createZincTheme } from '@reactorui/datagrid';
+
+// Creates a complete theme with zinc palette for dark mode
+const zincTheme = createZincTheme('default'); // or 'striped' or 'bordered'
+
+function App() {
+  return <DataGrid data={data} theme={zincTheme} />;
+}
+```
+
+### Theme + Variant
+
+Custom themes merge with the selected variant:
+
+```tsx
+// Striped variant + custom zinc dark mode
+<DataGrid
+  data={data}
+  variant="striped"
+  theme={{
+    container: 'bg-white dark:bg-zinc-900 rounded-xl',
+    row: 'odd:bg-white dark:odd:bg-zinc-900 even:bg-zinc-50 dark:even:bg-zinc-800/50',
+  }}
+/>
+```
+
+### Integration with Design Systems
+
+Example integrating with a custom ThemeStyles system:
+
+```tsx
+// utils/dataGridTheme.ts
+import { Theme } from '@reactorui/datagrid';
+
+export const appDataGridTheme: Partial<Theme> = {
+  container:
+    'bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-700',
+  table: 'w-full bg-white dark:bg-zinc-900',
+  header: 'bg-gray-50 dark:bg-zinc-800 border-b border-gray-200 dark:border-zinc-700',
+  headerCell: 'px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase',
+  row: 'bg-white dark:bg-zinc-900 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors',
+  cell: 'px-4 py-3 text-sm text-gray-900 dark:text-zinc-100 border-b dark:border-zinc-700',
+  selectedRow: 'bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30',
+  searchInput:
+    'px-3 py-2 border dark:border-zinc-700 rounded-md dark:bg-zinc-800 dark:text-zinc-100',
+  select: 'px-2 py-1 border dark:border-zinc-700 rounded dark:bg-zinc-800 dark:text-zinc-100',
+  button: 'px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700',
+  buttonSecondary:
+    'px-3 py-2 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 rounded-md',
+  text: 'text-gray-700 dark:text-zinc-300',
+  textMuted: 'text-gray-500 dark:text-zinc-500',
+  textError: 'text-red-600 dark:text-red-400',
+  pagination:
+    'flex items-center justify-between px-4 py-3 dark:bg-zinc-900 border-t dark:border-zinc-700',
+  paginationButton: 'px-3 py-1 text-sm border dark:border-zinc-700 rounded dark:bg-zinc-800',
+  paginationText: 'text-sm text-gray-700 dark:text-zinc-300',
+  emptyState: 'text-gray-500 dark:text-zinc-400',
+  filterDropdown:
+    'absolute z-50 mt-2 bg-white dark:bg-zinc-800 border dark:border-zinc-700 rounded-lg shadow-lg',
+  filterTag:
+    'inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-md',
+};
+
+// Usage
+import { appDataGridTheme } from './utils/dataGridTheme';
+
+<DataGrid data={data} theme={appDataGridTheme} />;
 ```
 
 ## 🌐 Server-Side Data (Controlled Mode)
@@ -247,7 +390,7 @@ For large datasets, enable scrollable body with fixed headers:
 
 ## 🎯 Event System
 
-### Filter Events (NEW)
+### Filter Events
 
 ```tsx
 <DataGrid
@@ -360,15 +503,16 @@ For large datasets, enable scrollable body with fixed headers:
 | `currentPage`  | `number`         | -             | Controlled current page                  |
 | `error`        | `string \| null` | -             | Error message to display                 |
 
-### Layout
+### Layout & Styling
 
-| Prop           | Type                                   | Default     | Description                       |
-| -------------- | -------------------------------------- | ----------- | --------------------------------- |
-| `maxHeight`    | `string \| number`                     | -           | Fixed height with scrollable body |
-| `stickyHeader` | `boolean`                              | `false`     | Enable sticky table header        |
-| `className`    | `string`                               | `''`        | Additional CSS classes            |
-| `variant`      | `'default' \| 'striped' \| 'bordered'` | `'default'` | Visual theme                      |
-| `size`         | `'sm' \| 'md' \| 'lg'`                 | `'md'`      | Padding/text size                 |
+| Prop           | Type                                   | Default     | Description                          |
+| -------------- | -------------------------------------- | ----------- | ------------------------------------ |
+| `maxHeight`    | `string \| number`                     | -           | Fixed height with scrollable body    |
+| `stickyHeader` | `boolean`                              | `false`     | Enable sticky table header           |
+| `className`    | `string`                               | `''`        | Additional CSS classes               |
+| `variant`      | `'default' \| 'striped' \| 'bordered'` | `'default'` | Visual theme variant                 |
+| `size`         | `'sm' \| 'md' \| 'lg'`                 | `'md'`      | Padding/text size                    |
+| `theme`        | `Partial<Theme>`                       | -           | Custom theme overrides (see Theming) |
 
 ### Features
 
@@ -438,6 +582,8 @@ interface Column<T> {
 
 ## 🎨 Theming & Styling
 
+### Built-in Variants
+
 ```tsx
 // Clean, minimal design
 <DataGrid variant="default" data={data} />
@@ -457,6 +603,27 @@ interface Column<T> {
 <div className="dark">
   <DataGrid data={data} />
 </div>
+```
+
+### Custom Theme
+
+```tsx
+import { DataGrid, createZincTheme } from '@reactorui/datagrid';
+
+// Option 1: Use zinc theme helper
+<DataGrid data={data} theme={createZincTheme('default')} />
+
+// Option 2: Partial overrides
+<DataGrid
+  data={data}
+  theme={{
+    container: 'bg-white dark:bg-slate-900 rounded-2xl',
+    row: 'hover:bg-slate-50 dark:hover:bg-slate-800',
+  }}
+/>
+
+// Option 3: Complete custom theme
+<DataGrid data={data} theme={myCompleteTheme} />
 ```
 
 ## 🧪 Testing
@@ -488,6 +655,13 @@ test('handles filter application', async () => {
     expect.objectContaining({ column: 'name', value: 'John' }),
     expect.any(Array)
   );
+});
+
+test('applies custom theme', () => {
+  const customTheme = { container: 'custom-class dark:bg-zinc-900' };
+  const { container } = render(<DataGrid data={testData} theme={customTheme} />);
+
+  expect(container.firstChild).toHaveClass('dark:bg-zinc-900');
 });
 ```
 
@@ -560,7 +734,7 @@ function MyGrid() {
 // ✅ Set filterMode to enable callbacks
 <DataGrid
   data={data}
-  filterMode="server"  // or "both"
+  filterMode="server"  // or "client&server"
   onApplyFilter={(f) => fetchWithFilter(f)}
 />
 ```
@@ -573,6 +747,14 @@ npm test           # Run tests
 npm run build      # Build library
 npm run typecheck  # Type checking
 npm run lint       # Linting
+```
+
+## 📤 Publishing
+
+```bash
+npm run build                    # Build the package
+npm version patch|minor|major    # Bump version
+npm publish --access public      # Publish to npm
 ```
 
 ## 📄 License

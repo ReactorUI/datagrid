@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { DataGrid } from './DataGrid';
+import { createZincTheme, defaultTheme, Theme } from '../../themes';
 
 const testData = [
   { id: 1, name: 'John Doe', email: 'john@example.com' },
@@ -284,5 +285,232 @@ describe('DataGrid Controlled Mode', () => {
     render(<DataGrid data={testData} totalRecords={100} currentPage={5} pageSize={10} />);
 
     expect(screen.getByText(/Page 5/i)).toBeInTheDocument();
+  });
+});
+
+// =============================================================================
+// Theme Support
+// =============================================================================
+
+describe('DataGrid Theme', () => {
+  it('renders with default theme when no theme prop provided', () => {
+    const { container } = render(<DataGrid data={testData} />);
+    const grid = container.firstChild as HTMLElement;
+
+    // Default theme has gray-900 dark mode background
+    expect(grid.className).toContain('dark:bg-gray-900');
+  });
+
+  it('applies custom theme overrides', () => {
+    const customTheme: Partial<Theme> = {
+      container: 'bg-white dark:bg-zinc-900 rounded-lg border border-zinc-700',
+    };
+
+    const { container } = render(<DataGrid data={testData} theme={customTheme} />);
+    const grid = container.firstChild as HTMLElement;
+
+    expect(grid.className).toContain('dark:bg-zinc-900');
+    expect(grid.className).toContain('border-zinc-700');
+  });
+
+  it('merges custom theme with variant theme', () => {
+    const customTheme: Partial<Theme> = {
+      container: 'bg-white dark:bg-zinc-900 rounded-xl',
+    };
+
+    const { container } = render(
+      <DataGrid data={testData} variant="striped" theme={customTheme} />
+    );
+    const grid = container.firstChild as HTMLElement;
+
+    // Custom container should be used
+    expect(grid.className).toContain('dark:bg-zinc-900');
+    expect(grid.className).toContain('rounded-xl');
+  });
+
+  it('applies createZincTheme for zinc dark mode', () => {
+    const zincTheme = createZincTheme('default');
+
+    const { container } = render(<DataGrid data={testData} theme={zincTheme} />);
+    const grid = container.firstChild as HTMLElement;
+
+    // Zinc theme uses zinc palette
+    expect(grid.className).toContain('dark:bg-zinc-900');
+    expect(grid.className).toContain('dark:border-zinc-700');
+  });
+
+  it('applies theme to table rows', () => {
+    const customTheme: Partial<Theme> = {
+      row: 'bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800',
+    };
+
+    render(<DataGrid data={testData} theme={customTheme} enableSelection={false} />);
+
+    const row = screen.getByText('John Doe').closest('tr');
+    expect(row?.className).toContain('dark:bg-zinc-900');
+    expect(row?.className).toContain('dark:hover:bg-zinc-800');
+  });
+
+  it('applies theme to selected rows', () => {
+    const customTheme: Partial<Theme> = {
+      selectedRow: 'bg-blue-100 dark:bg-blue-900/30',
+    };
+
+    render(<DataGrid data={testData} theme={customTheme} enableSelection={true} />);
+
+    // Select a row
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[1]);
+
+    const row = screen.getByText('John Doe').closest('tr');
+    expect(row?.className).toContain('dark:bg-blue-900/30');
+  });
+
+  it('applies theme to pagination', () => {
+    const customTheme: Partial<Theme> = {
+      pagination: 'flex items-center justify-between px-4 py-3 bg-white dark:bg-zinc-900',
+      paginationButton: 'px-3 py-1 text-sm border dark:border-zinc-700 rounded',
+      paginationText: 'text-sm text-gray-700 dark:text-zinc-300',
+    };
+
+    render(<DataGrid data={testData} theme={customTheme} />);
+
+    // Check pagination text uses theme
+    expect(screen.getByText(/Showing/i).className).toContain('dark:text-zinc-300');
+  });
+
+  it('applies theme to empty state', () => {
+    const customTheme: Partial<Theme> = {
+      emptyState: 'text-gray-400 dark:text-zinc-500',
+    };
+
+    render(<DataGrid data={[]} theme={customTheme} />);
+
+    expect(screen.getByText('No data available').className).toContain('dark:text-zinc-500');
+  });
+
+  it('applies theme to error state', () => {
+    const customTheme: Partial<Theme> = {
+      textError: 'text-red-500 dark:text-red-400',
+      textMuted: 'text-gray-400 dark:text-zinc-500',
+      button: 'px-3 py-2 bg-blue-600 text-white rounded-lg',
+    };
+
+    render(<DataGrid data={[]} error="Network error" theme={customTheme} />);
+
+    expect(screen.getByText('Error loading data').className).toContain('dark:text-red-400');
+    expect(screen.getByText('Network error').className).toContain('dark:text-zinc-500');
+  });
+
+  it('applies theme to search input', () => {
+    const customTheme: Partial<Theme> = {
+      searchInput: 'px-3 py-2 border dark:border-zinc-700 rounded dark:bg-zinc-800',
+    };
+
+    render(<DataGrid data={testData} enableSearch={true} theme={customTheme} />);
+
+    const searchInput = screen.getByPlaceholderText('Search...');
+    expect(searchInput.className).toContain('dark:border-zinc-700');
+    expect(searchInput.className).toContain('dark:bg-zinc-800');
+  });
+
+  it('applies theme to select dropdown', () => {
+    const customTheme: Partial<Theme> = {
+      select: 'px-2 py-1 border dark:border-zinc-700 rounded dark:bg-zinc-800',
+    };
+
+    render(<DataGrid data={testData} theme={customTheme} />);
+
+    const select = screen.getByRole('combobox');
+    expect(select.className).toContain('dark:border-zinc-700');
+    expect(select.className).toContain('dark:bg-zinc-800');
+  });
+
+  it('works with all variants and custom theme', () => {
+    const variants: Array<'default' | 'striped' | 'bordered'> = ['default', 'striped', 'bordered'];
+    const customTheme: Partial<Theme> = {
+      container: 'custom-container-class',
+    };
+
+    variants.forEach((variant) => {
+      const { container, unmount } = render(
+        <DataGrid data={testData} variant={variant} theme={customTheme} />
+      );
+      const grid = container.firstChild as HTMLElement;
+
+      expect(grid.className).toContain('custom-container-class');
+      unmount();
+    });
+  });
+});
+
+// =============================================================================
+// Theme Helper Functions
+// =============================================================================
+
+describe('Theme Helpers', () => {
+  it('createZincTheme returns valid theme object', () => {
+    const theme = createZincTheme('default');
+
+    expect(theme).toHaveProperty('container');
+    expect(theme).toHaveProperty('table');
+    expect(theme).toHaveProperty('row');
+    expect(theme).toHaveProperty('cell');
+    expect(theme).toHaveProperty('headerCell');
+    expect(theme).toHaveProperty('pagination');
+  });
+
+  it('createZincTheme replaces gray with zinc in dark mode classes', () => {
+    const theme = createZincTheme('default');
+
+    expect(theme.container).toContain('dark:bg-zinc-900');
+    expect(theme.container).toContain('dark:border-zinc-700');
+    expect(theme.row).toContain('dark:bg-zinc-900');
+    expect(theme.row).toContain('dark:hover:bg-zinc-800');
+  });
+
+  it('createZincTheme works with striped variant', () => {
+    const theme = createZincTheme('striped');
+
+    expect(theme.row).toContain('odd:');
+    expect(theme.row).toContain('even:');
+  });
+
+  it('createZincTheme works with bordered variant', () => {
+    const theme = createZincTheme('bordered');
+
+    expect(theme.cell).toContain('border-r');
+  });
+
+  it('defaultTheme has all required properties', () => {
+    const requiredProps: (keyof Theme)[] = [
+      'container',
+      'table',
+      'header',
+      'headerCell',
+      'row',
+      'cell',
+      'selectedRow',
+      'searchInput',
+      'select',
+      'button',
+      'buttonSecondary',
+      'text',
+      'textMuted',
+      'textError',
+      'pagination',
+      'paginationButton',
+      'paginationText',
+      'loadingSkeleton',
+      'emptyState',
+      'filterDropdown',
+      'filterTag',
+      'filterTagRemove',
+    ];
+
+    requiredProps.forEach((prop) => {
+      expect(defaultTheme).toHaveProperty(prop);
+      expect(typeof defaultTheme[prop]).toBe('string');
+    });
   });
 });

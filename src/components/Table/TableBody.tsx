@@ -1,3 +1,5 @@
+// File: src/components/Table/TableBody.tsx
+
 import React from 'react';
 import { Column } from '../../types';
 import { Theme } from '../../themes';
@@ -6,7 +8,7 @@ interface TableBodyProps<T> {
   columns: Column<T>[];
   data: T[];
   selectedRows: Set<string>;
-  onSelectRow?: (rowId: string, selected: boolean) => void;
+  onSelectRow?: (row: T, selected: boolean) => void;
   onRowClick?: (row: T, event: React.MouseEvent) => void;
   onRowDoubleClick?: (row: T, event: React.MouseEvent) => void;
   onRowHover?: (row: T | null, event: React.MouseEvent) => void;
@@ -15,7 +17,7 @@ interface TableBodyProps<T> {
   loading: boolean;
   emptyMessage?: string;
   theme: Theme;
-  getRowId?: (row: T) => string; // Accept the ID generator from parent
+  getRowId?: (row: T) => string;
 }
 
 export const TableBody = <T extends Record<string, any>>({
@@ -33,11 +35,10 @@ export const TableBody = <T extends Record<string, any>>({
   theme,
   getRowId,
 }: TableBodyProps<T>) => {
-  // Generate stable row IDs - always generate, never use existing fields
+  // Generate stable row IDs
   const rowIdMap = React.useMemo(() => {
     const map = new Map<any, string>();
     data.forEach((row, index) => {
-      // Always generate based on index and content hash
       const contentHash = JSON.stringify(row)
         .slice(0, 50)
         .replace(/[^a-zA-Z0-9]/g, '');
@@ -84,7 +85,7 @@ export const TableBody = <T extends Record<string, any>>({
     if (enableSelection && onSelectRow) {
       const rowId = getStableRowId(row);
       const isSelected = selectedRows.has(rowId);
-      onSelectRow(rowId, !isSelected);
+      onSelectRow(row, !isSelected);
     }
   };
 
@@ -95,13 +96,21 @@ export const TableBody = <T extends Record<string, any>>({
     }
   };
 
+  // Extract background from theme.table for tbody
+  const tbodyBg = theme.table.includes('bg-')
+    ? theme.table
+        .split(' ')
+        .filter((c) => c.startsWith('bg-') || c.startsWith('dark:bg-'))
+        .join(' ')
+    : '';
+
   if (loading) {
     return (
-      <tbody className="bg-white dark:bg-gray-800">
+      <tbody className={tbodyBg}>
         <tr>
           <td
             colSpan={columns.length + (enableSelection ? 1 : 0)}
-            className="px-4 py-12 text-center text-gray-500 dark:text-gray-400"
+            className={`px-4 py-12 text-center ${theme.textMuted}`}
           >
             <div className="flex items-center justify-center gap-2">
               <svg
@@ -136,11 +145,11 @@ export const TableBody = <T extends Record<string, any>>({
 
   if (data.length === 0) {
     return (
-      <tbody className="bg-white dark:bg-gray-800">
+      <tbody className={tbodyBg}>
         <tr>
           <td
             colSpan={columns.length + (enableSelection ? 1 : 0)}
-            className="px-4 py-8 text-center text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800"
+            className={`px-4 py-8 text-center ${theme.emptyState} ${tbodyBg}`}
           >
             {emptyMessage}
           </td>
@@ -149,9 +158,17 @@ export const TableBody = <T extends Record<string, any>>({
     );
   }
 
+  // Extract border color from theme for dividers
+  const borderColor =
+    theme.cell
+      .match(/border-\S+/g)
+      ?.filter((c) => !c.includes('border-b') && !c.includes('border-r'))?.[0] ||
+    'border-gray-200 dark:border-gray-600';
+  const divideBorder = borderColor.replace('border-', 'divide-');
+
   return (
-    <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
-      {data.map((row, index) => {
+    <tbody className={`divide-y ${divideBorder}`}>
+      {data.map((row) => {
         const rowId = getStableRowId(row);
         const isSelected = selectedRows.has(rowId);
 
@@ -171,9 +188,9 @@ export const TableBody = <T extends Record<string, any>>({
                   checked={isSelected}
                   onChange={(e) => {
                     e.stopPropagation();
-                    onSelectRow?.(rowId, e.target.checked);
+                    onSelectRow?.(row, e.target.checked);
                   }}
-                  className="w-4 h-4 text-blue-600 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 dark:focus:ring-blue-400"
+                  className={`w-4 h-4 text-blue-600 rounded focus:ring-blue-500 dark:focus:ring-blue-400 ${tbodyBg} ${borderColor}`}
                 />
               </td>
             )}

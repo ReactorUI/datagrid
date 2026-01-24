@@ -6,7 +6,7 @@ import { useDataGrid } from '../../hooks';
 import { SearchInput } from '../Search';
 import { FilterControls } from '../Filter';
 import { TableHeader, TableBody } from '../Table';
-import { getTheme } from '../../themes';
+import { getTheme, Theme } from '../../themes';
 import { inferDataType } from '../../utils';
 
 // ============================================================================
@@ -79,6 +79,7 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
   variant = 'default',
   size = 'md',
   className = '',
+  theme: customTheme,
 
   // Pagination Events
   onPageChange,
@@ -116,7 +117,8 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
 
   ...rest
 }: DataGridProps<T>) => {
-  const theme = getTheme(variant);
+  // Merge variant theme with custom theme overrides
+  const theme = useMemo(() => getTheme(variant, customTheme), [variant, customTheme]);
 
   // ===== Deprecation Warnings =====
   React.useEffect(() => {
@@ -228,66 +230,61 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
     onFilterChange,
   });
 
-  // Auto-detect columns if not provided
-  const columns = useMemo<Column<T>[]>(() => {
+  // ===== Column Configuration =====
+  const columns: Column<T>[] = useMemo(() => {
     if (columnsProp.length > 0) return columnsProp;
+    if (!data || data.length === 0) return [];
 
-    if (data.length > 0) {
-      const firstRow = data[0];
-      return Object.keys(firstRow).map((key) => ({
-        key,
-        label: key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'),
-        sortable: true,
-        filterable: true,
-        dataType: inferDataType((firstRow as any)[key]),
-      }));
-    }
-
-    return [];
+    // Auto-detect columns from first row
+    return Object.keys(data[0]).map((key) => ({
+      key,
+      label: key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'),
+      sortable: true,
+      filterable: true,
+      dataType: inferDataType(data[0][key]),
+    }));
   }, [columnsProp, data]);
-
-  // Selection change effect
-  const previousSelectedData = React.useRef<T[]>([]);
-
-  React.useLayoutEffect(() => {
-    const hasChanged =
-      selectedData.length !== previousSelectedData.current.length ||
-      selectedData.some((item, index) => item !== previousSelectedData.current[index]);
-
-    if (hasChanged && onSelectionChange) {
-      previousSelectedData.current = selectedData;
-      onSelectionChange(selectedData);
-    }
-  }, [selectedData, onSelectionChange]);
 
   // Handle row selection with callback
   const handleRowSelect = useCallback(
-    (rowId: string, selected: boolean) => {
-      selectRow(rowId, selected);
-      if (onRowSelect) {
-        const row = data.find((r) => getRowId(r) === rowId);
-        if (row) {
-          onRowSelect(row, selected);
-        }
-      }
+    (row: T, isSelected: boolean) => {
+      const rowId = getRowId(row);
+      selectRow(rowId, isSelected);
+      onRowSelect?.(row, isSelected);
+
+      // Calculate new selection for callback
+      const newSelectedRows = new Set(selectedRows);
+      isSelected ? newSelectedRows.add(rowId) : newSelectedRows.delete(rowId);
+
+      const newSelectedData = data.filter((r) => newSelectedRows.has(getRowId(r)));
+      onSelectionChange?.(newSelectedData);
     },
-    [selectRow, onRowSelect, data, getRowId]
+    [selectRow, onRowSelect, onSelectionChange, getRowId, selectedRows, data]
   );
 
-  // Handle delete action
+  // Handle select all with callback
+  const handleSelectAll = useCallback(
+    (selected: boolean) => {
+      selectAll(selected);
+
+      // Call onSelectionChange with all or none
+      const newSelectedData = selected ? paginatedData : [];
+      onSelectionChange?.(newSelectedData);
+    },
+    [selectAll, onSelectionChange, paginatedData]
+  );
+
+  // Handle delete
   const handleDelete = useCallback(() => {
     if (selectedRows.size === 0) return;
 
     const executeDelete = () => {
-      if (onBulkDelete) {
-        onBulkDelete(selectedData);
-      }
+      onBulkDelete?.(selectedData);
     };
 
     if (deleteConfirmation) {
-      const count = selectedRows.size;
-      const message = `Are you sure you want to delete ${count} selected item${count === 1 ? '' : 's'}?`;
-      if (window.confirm(message)) {
+      const confirmMessage = `Are you sure you want to delete ${selectedRows.size} selected item${selectedRows.size === 1 ? '' : 's'}?`;
+      if (window.confirm(confirmMessage)) {
         executeDelete();
       }
     } else {
@@ -309,8 +306,8 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
     return (
       <div className={`${theme.container} ${className}`} {...rest}>
         <div className="px-4 py-8 text-center">
-          <div className="text-red-600 dark:text-red-400 mb-2">Error loading data</div>
-          <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">{externalError}</div>
+          <div className={`${theme.textError} mb-2`}>Error loading data</div>
+          <div className={`text-sm ${theme.textMuted} mb-4`}>{externalError}</div>
           <button onClick={handleRefresh} className={theme.button}>
             Try Again
           </button>
@@ -334,12 +331,12 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
         <div className="flex justify-between items-center gap-4">
           {/* Left: Show X entries + Filter icon */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="text-sm text-gray-700 dark:text-gray-300">Show</span>
+            <span className={`text-sm ${theme.text}`}>Show</span>
             <select
               value={currentPageSize}
               onChange={(e) => setCurrentPageSize(parseInt(e.target.value))}
               disabled={isAnyLoading}
-              className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:opacity-50"
+              className={theme.select}
             >
               {pageSizeOptions.map((size) => (
                 <option key={size} value={size}>
@@ -347,7 +344,7 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
                 </option>
               ))}
             </select>
-            <span className="text-sm text-gray-700 dark:text-gray-300">entries</span>
+            <span className={`text-sm ${theme.text}`}>entries</span>
 
             {/* Filter Icon */}
             {enableFilters && (
@@ -359,6 +356,7 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
                 onClearFilters={clearFilters}
                 disabled={isDataLoading}
                 filterLoading={isFilterLoading}
+                theme={theme}
               />
             )}
           </div>
@@ -376,7 +374,7 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
                 />
                 {isSearchLoading && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <Spinner className="w-4 h-4 text-gray-400" />
+                    <Spinner className={`w-4 h-4 ${theme.textMuted}`} />
                   </div>
                 )}
               </div>
@@ -387,7 +385,7 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
                 onClick={handleRefresh}
                 disabled={isAnyLoading}
                 title={isRefreshLoading ? 'Refreshing...' : 'Refresh data'}
-                className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors duration-150 flex items-center justify-center"
+                className={`${theme.buttonSecondary} flex items-center justify-center`}
               >
                 <svg
                   className="w-4 h-4"
@@ -417,10 +415,8 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
                       ? 'Deleting...'
                       : `Delete ${selectedRows.size} selected item${selectedRows.size === 1 ? '' : 's'}`
                 }
-                className={`px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 transition-colors duration-150 flex items-center gap-1 ${
-                  selectedRows.size === 0 || isAnyLoading
-                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 cursor-pointer'
+                className={`${theme.buttonSecondary} flex items-center gap-1 ${
+                  selectedRows.size === 0 || isAnyLoading ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
               >
                 {isDeleteLoading ? (
@@ -460,7 +456,7 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
             enableSelection={enableSelection}
             selectedCount={selectedRows.size}
             totalCount={paginatedData.length}
-            onSelectAll={enableSelection ? selectAll : undefined}
+            onSelectAll={enableSelection ? handleSelectAll : undefined}
             theme={theme}
             sticky={hasFixedLayout}
           />
@@ -483,7 +479,7 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
 
       {/* Pagination - Fixed at bottom when scrollable */}
       <div className={`${theme.pagination} flex-shrink-0`}>
-        <div className="text-sm text-gray-700 dark:text-gray-300 flex-shrink-0">
+        <div className={`${theme.paginationText} flex-shrink-0`}>
           Showing {paginationInfo.start}-{paginationInfo.end} of{' '}
           {paginationInfo.totalRecords.toLocaleString()} records
         </div>
@@ -492,19 +488,19 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
           <button
             onClick={navigatePrevious}
             disabled={!paginationInfo.hasPrevious || isAnyLoading}
-            className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
+            className={theme.paginationButton}
           >
             Previous
           </button>
 
-          <span className="text-sm text-gray-700 dark:text-gray-300 px-2">
+          <span className={`${theme.paginationText} px-2`}>
             Page {currentPage} {paginationInfo.totalPages > 0 && `of ${paginationInfo.totalPages}`}
           </span>
 
           <button
             onClick={navigateNext}
             disabled={!paginationInfo.hasNext || isAnyLoading}
-            className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
+            className={theme.paginationButton}
           >
             Next
           </button>
