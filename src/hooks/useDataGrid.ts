@@ -1,6 +1,6 @@
 // File: src/hooks/useDataGrid.ts
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { BaseRowData, ActiveFilter, SortConfig, PaginationInfo } from '../types';
 import { compareValues, sortData } from '../utils';
 
@@ -42,7 +42,7 @@ interface UseDataGridProps<T> {
 
 export const useDataGrid = <T extends BaseRowData>({
   data,
-  pageSize: initialPageSize = 10,
+  pageSize = 10,
   totalRecords: externalTotalRecords,
   currentPage: externalCurrentPage,
   loading: externalLoading = false,
@@ -62,7 +62,13 @@ export const useDataGrid = <T extends BaseRowData>({
   const [sortConfig, setSortConfig] = useState<SortConfig>({ column: '', direction: 'asc' });
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [internalPage, setInternalPage] = useState(1);
-  const [currentPageSize, setCurrentPageSizeState] = useState(initialPageSize);
+  const [currentPageSize, setCurrentPageSizeState] = useState(pageSize);
+
+  // ===== Sync pageSize prop with internal state =====
+  // This ensures the component responds to prop changes from parent
+  useEffect(() => {
+    setCurrentPageSizeState(pageSize);
+  }, [pageSize]);
 
   // Determine if we're in controlled mode (server-side) or uncontrolled (client-side)
   const isControlled = externalTotalRecords !== undefined;
@@ -137,9 +143,10 @@ export const useDataGrid = <T extends BaseRowData>({
     return processedData.slice(start, start + currentPageSize);
   }, [processedData, currentPage, currentPageSize, isControlled, data]);
 
+  // ===== Pagination Info =====
   const paginationInfo = useMemo((): PaginationInfo => {
     const total = isControlled ? (externalTotalRecords ?? 0) : processedData.length;
-    const totalPages = Math.ceil(total / currentPageSize);
+    const totalPages = Math.ceil(total / currentPageSize) || 1;
     const start = total === 0 ? 0 : (currentPage - 1) * currentPageSize + 1;
     const end = Math.min(currentPage * currentPageSize, total);
 
@@ -153,7 +160,7 @@ export const useDataGrid = <T extends BaseRowData>({
       hasNext: currentPage < totalPages,
       hasPrevious: currentPage > 1,
     };
-  }, [processedData.length, currentPage, currentPageSize, isControlled, externalTotalRecords]);
+  }, [processedData, currentPage, currentPageSize, isControlled, externalTotalRecords]);
 
   // ===== Selection =====
   const selectedData = useMemo(() => {
@@ -194,7 +201,7 @@ export const useDataGrid = <T extends BaseRowData>({
   const setCurrentPageSize = useCallback(
     (size: number) => {
       setCurrentPageSizeState(size);
-      if (!isControlled) setInternalPage(1);
+      if (!isControlled) setInternalPage(1); // Reset to page 1 when page size changes
       onPageSizeChange?.(size);
     },
     [isControlled, onPageSizeChange]

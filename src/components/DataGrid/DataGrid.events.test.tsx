@@ -8,6 +8,17 @@ const testData = [
   { id: 2, name: 'Jane Smith', email: 'jane@example.com', age: 25 },
 ];
 
+// Generate larger dataset for pagination testing
+const generateTestData = (count: number) =>
+  Array.from({ length: count }, (_, i) => ({
+    id: i + 1,
+    name: `User ${i + 1}`,
+    email: `user${i + 1}@example.com`,
+    age: 20 + (i % 50),
+  }));
+
+const largeTestData = generateTestData(50);
+
 // =============================================================================
 // Pagination Events
 // =============================================================================
@@ -56,6 +67,228 @@ describe('DataGrid Pagination Events', () => {
   it('disables Next on last page', () => {
     render(<DataGrid data={testData} pageSize={10} />);
     expect(screen.getByText('Next')).toBeDisabled();
+  });
+});
+
+// =============================================================================
+// Page Size Changes - Client Side
+// =============================================================================
+
+describe('DataGrid Page Size - Client Side', () => {
+  it('displays correct number of rows based on initial pageSize', () => {
+    render(<DataGrid data={largeTestData} pageSize={10} enableFilters={false} />);
+
+    const rows = screen.getAllByRole('row');
+    expect(rows.length - 1).toBe(10); // Subtract header row
+  });
+
+  it('updates displayed rows when page size changes', async () => {
+    render(<DataGrid data={largeTestData} pageSize={5} enableFilters={false} />);
+
+    // Initially 5 rows
+    let rows = screen.getAllByRole('row');
+    expect(rows.length - 1).toBe(5);
+
+    // Change page size to 10
+    const pageSizeSelect = screen.getByDisplayValue('5');
+    fireEvent.change(pageSizeSelect, { target: { value: '10' } });
+
+    await waitFor(() => {
+      rows = screen.getAllByRole('row');
+      expect(rows.length - 1).toBe(10);
+    });
+  });
+
+  it('updates dropdown value when page size changes', async () => {
+    render(<DataGrid data={largeTestData} pageSize={5} enableFilters={false} />);
+
+    const pageSizeSelect = screen.getByDisplayValue('5') as HTMLSelectElement;
+    expect(pageSizeSelect.value).toBe('5');
+
+    fireEvent.change(pageSizeSelect, { target: { value: '25' } });
+
+    await waitFor(() => {
+      expect(pageSizeSelect.value).toBe('25');
+    });
+  });
+
+  it('resets to page 1 when page size changes', async () => {
+    render(<DataGrid data={largeTestData} pageSize={5} enableFilters={false} />);
+
+    // Navigate to page 3
+    fireEvent.click(screen.getByText('Next'));
+    fireEvent.click(screen.getByText('Next'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Page 3/)).toBeInTheDocument();
+    });
+
+    // Change page size
+    const pageSizeSelect = screen.getByDisplayValue('5');
+    fireEvent.change(pageSizeSelect, { target: { value: '10' } });
+
+    // Should reset to page 1
+    await waitFor(() => {
+      expect(screen.getByText(/Page 1/)).toBeInTheDocument();
+    });
+  });
+
+  it('updates pagination info when page size changes', async () => {
+    render(<DataGrid data={largeTestData} pageSize={5} enableFilters={false} />);
+
+    expect(screen.getByText(/Showing 1-5 of 50/)).toBeInTheDocument();
+
+    const pageSizeSelect = screen.getByDisplayValue('5');
+    fireEvent.change(pageSizeSelect, { target: { value: '25' } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Showing 1-25 of 50/)).toBeInTheDocument();
+    });
+  });
+
+  it('correctly calculates total pages after page size change', async () => {
+    render(<DataGrid data={largeTestData} pageSize={10} enableFilters={false} />);
+
+    // 50 records / 10 per page = 5 pages
+    expect(screen.getByText(/Page 1 of 5/)).toBeInTheDocument();
+
+    // Change to 25 per page: 50 / 25 = 2 pages
+    const pageSizeSelect = screen.getByDisplayValue('10');
+    fireEvent.change(pageSizeSelect, { target: { value: '25' } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Page 1 of 2/)).toBeInTheDocument();
+    });
+  });
+
+  it('disables Next button correctly after page size change', async () => {
+    const smallData = generateTestData(15);
+    render(<DataGrid data={smallData} pageSize={5} enableFilters={false} />);
+
+    // With 15 records and 5 per page, Next should be enabled
+    expect(screen.getByText('Next')).not.toBeDisabled();
+
+    // Change to 25 per page - all fit on one page
+    const pageSizeSelect = screen.getByDisplayValue('5');
+    fireEvent.change(pageSizeSelect, { target: { value: '25' } });
+
+    await waitFor(() => {
+      expect(screen.getByText('Next')).toBeDisabled();
+    });
+  });
+
+  it('shows all records when page size exceeds total', async () => {
+    const smallData = generateTestData(8);
+    render(<DataGrid data={smallData} pageSize={5} enableFilters={false} />);
+
+    let rows = screen.getAllByRole('row');
+    expect(rows.length - 1).toBe(5);
+
+    const pageSizeSelect = screen.getByDisplayValue('5');
+    fireEvent.change(pageSizeSelect, { target: { value: '10' } });
+
+    await waitFor(() => {
+      rows = screen.getAllByRole('row');
+      expect(rows.length - 1).toBe(8); // All 8 records
+    });
+  });
+});
+
+// =============================================================================
+// Pagination Navigation - Client Side
+// =============================================================================
+
+describe('DataGrid Pagination Navigation - Client Side', () => {
+  it('navigates to next page and shows correct data', async () => {
+    render(<DataGrid data={largeTestData} pageSize={5} enableFilters={false} />);
+
+    expect(screen.getByText('User 1')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Next'));
+
+    await waitFor(() => {
+      expect(screen.getByText('User 6')).toBeInTheDocument();
+      expect(screen.queryByText('User 1')).not.toBeInTheDocument();
+    });
+  });
+
+  it('navigates to previous page', async () => {
+    render(<DataGrid data={largeTestData} pageSize={5} enableFilters={false} />);
+
+    fireEvent.click(screen.getByText('Next'));
+
+    await waitFor(() => {
+      expect(screen.getByText('User 6')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Previous'));
+
+    await waitFor(() => {
+      expect(screen.getByText('User 1')).toBeInTheDocument();
+    });
+  });
+
+  it('calls onPageChange with correct parameters', async () => {
+    const onPageChange = jest.fn();
+    render(
+      <DataGrid
+        data={largeTestData}
+        pageSize={5}
+        enableFilters={false}
+        onPageChange={onPageChange}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Next'));
+
+    await waitFor(() => {
+      expect(onPageChange).toHaveBeenCalledWith(
+        2,
+        expect.objectContaining({
+          currentPage: 2,
+          pageSize: 5,
+          totalRecords: 50,
+        })
+      );
+    });
+  });
+});
+
+// =============================================================================
+// Pagination with Search - Client Side
+// =============================================================================
+
+describe('DataGrid Pagination with Search', () => {
+  it('resets to page 1 when search term changes', async () => {
+    render(<DataGrid data={largeTestData} pageSize={5} enableSearch={true} />);
+
+    fireEvent.click(screen.getByText('Next'));
+    fireEvent.click(screen.getByText('Next'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Page 3/)).toBeInTheDocument();
+    });
+
+    const searchInput = screen.getByPlaceholderText('Search...');
+    fireEvent.change(searchInput, { target: { value: 'User 1' } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Page 1/)).toBeInTheDocument();
+    });
+  });
+
+  it('updates pagination info based on search results', async () => {
+    render(<DataGrid data={largeTestData} pageSize={10} enableSearch={true} />);
+
+    expect(screen.getByText(/of 50 records/)).toBeInTheDocument();
+
+    const searchInput = screen.getByPlaceholderText('Search...');
+    fireEvent.change(searchInput, { target: { value: 'User 1' } });
+
+    await waitFor(() => {
+      // Should show filtered count (User 1, User 10-19 = 11 matches)
+      expect(screen.getByText(/of 11 records/)).toBeInTheDocument();
+    });
   });
 });
 

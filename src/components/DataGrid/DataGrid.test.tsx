@@ -289,6 +289,67 @@ describe('DataGrid Controlled Mode', () => {
 });
 
 // =============================================================================
+// Pagination Edge Cases
+// =============================================================================
+
+describe('DataGrid Pagination Edge Cases', () => {
+  it('handles empty data gracefully', () => {
+    render(<DataGrid data={[]} pageSize={10} enableFilters={false} />);
+
+    expect(screen.getByText(/Showing 0-0 of 0 records/)).toBeInTheDocument();
+    expect(screen.getByText('Previous')).toBeDisabled();
+    expect(screen.getByText('Next')).toBeDisabled();
+  });
+
+  it('handles single record', () => {
+    const singleRecord = [{ id: 1, name: 'Only User' }];
+    render(<DataGrid data={singleRecord} pageSize={10} enableFilters={false} />);
+
+    expect(screen.getByText(/Showing 1-1 of 1 records/)).toBeInTheDocument();
+    expect(screen.getByText('Only User')).toBeInTheDocument();
+  });
+
+  it('handles data smaller than page size', () => {
+    const smallData = [
+      { id: 1, name: 'User 1' },
+      { id: 2, name: 'User 2' },
+      { id: 3, name: 'User 3' },
+    ];
+    render(<DataGrid data={smallData} pageSize={10} enableFilters={false} />);
+
+    expect(screen.getByText(/Showing 1-3 of 3 records/)).toBeInTheDocument();
+    const rows = screen.getAllByRole('row');
+    expect(rows.length - 1).toBe(3);
+  });
+
+  it('respects custom pageSizeOptions', () => {
+    const customOptions = [15, 30, 45];
+    render(
+      <DataGrid
+        data={testData}
+        pageSize={15}
+        pageSizeOptions={customOptions}
+        enableFilters={false}
+      />
+    );
+
+    const select = screen.getByDisplayValue('15');
+    const options = select.querySelectorAll('option');
+
+    expect(options).toHaveLength(3);
+    expect(options[0]).toHaveValue('15');
+    expect(options[1]).toHaveValue('30');
+    expect(options[2]).toHaveValue('45');
+  });
+
+  it('shows page 1 of 1 when all data fits on one page', () => {
+    render(<DataGrid data={testData} pageSize={10} enableFilters={false} />);
+
+    expect(screen.getByText(/Page 1 of 1/)).toBeInTheDocument();
+  });
+});
+
+// =============================================================================
 // Theme Support
 // =============================================================================
 
