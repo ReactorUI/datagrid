@@ -275,16 +275,47 @@ describe('DataGrid Error Handling', () => {
 // =============================================================================
 
 describe('DataGrid Controlled Mode', () => {
-  it('uses totalRecords for pagination display', () => {
-    render(<DataGrid data={testData} totalRecords={100} pageSize={10} />);
+  it('uses totalRecords for pagination display in server mode', () => {
+    render(<DataGrid data={testData} totalRecords={100} pageSize={10} paginationMode="server" />);
 
     expect(screen.getByText(/of 100 records/i)).toBeInTheDocument();
   });
 
-  it('respects currentPage prop', () => {
-    render(<DataGrid data={testData} totalRecords={100} currentPage={5} pageSize={10} />);
+  it('respects currentPage prop in server mode', () => {
+    render(
+      <DataGrid
+        data={testData}
+        totalRecords={100}
+        currentPage={5}
+        pageSize={10}
+        paginationMode="server"
+      />
+    );
 
     expect(screen.getByText(/Page 5/i)).toBeInTheDocument();
+  });
+
+  it('client mode uses data.length not totalRecords for pagination', () => {
+    render(<DataGrid data={testData} totalRecords={100} pageSize={10} paginationMode="client" />);
+
+    // Should use data.length (2) not totalRecords (100)
+    expect(screen.getByText(/of 2 records/i)).toBeInTheDocument();
+  });
+
+  it('defaults to client mode when paginationMode not specified', () => {
+    const largeData = Array.from({ length: 20 }, (_, i) => ({
+      id: i + 1,
+      name: `User ${i + 1}`,
+    }));
+
+    render(<DataGrid data={largeData} totalRecords={500} pageSize={5} enableFilters={false} />);
+
+    // Should slice to 5 rows (client mode)
+    const rows = screen.getAllByRole('row');
+    expect(rows.length - 1).toBe(5);
+
+    // Should use data.length for total
+    expect(screen.getByText(/of 20 records/i)).toBeInTheDocument();
   });
 });
 

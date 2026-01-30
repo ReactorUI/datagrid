@@ -12,10 +12,17 @@ interface UseDataGridProps<T> {
   data: T[];
   pageSize?: number;
 
-  // External state for controlled mode (server-side pagination)
+  // External state for display and/or controlled mode
   totalRecords?: number;
   currentPage?: number;
   loading?: boolean;
+
+  /**
+   * Pagination behavior mode:
+   * - 'client' (default): Slices data locally, totalRecords used for display only
+   * - 'server': No local slicing, parent handles pagination via onPageChange/onPageSizeChange
+   */
+  paginationMode?: 'client' | 'server';
 
   /**
    * Filter behavior mode:
@@ -46,6 +53,7 @@ export const useDataGrid = <T extends BaseRowData>({
   totalRecords: externalTotalRecords,
   currentPage: externalCurrentPage,
   loading: externalLoading = false,
+  paginationMode = 'client',
   filterMode = 'client',
   onPageChange,
   onPageSizeChange,
@@ -70,8 +78,8 @@ export const useDataGrid = <T extends BaseRowData>({
     setCurrentPageSizeState(pageSize);
   }, [pageSize]);
 
-  // Determine if we're in controlled mode (server-side) or uncontrolled (client-side)
-  const isControlled = externalTotalRecords !== undefined;
+  // Determine if pagination is server-controlled
+  const isServerPagination = paginationMode === 'server';
   const currentPage = externalCurrentPage ?? internalPage;
 
   // ===== Row ID Generation =====
@@ -102,7 +110,7 @@ export const useDataGrid = <T extends BaseRowData>({
     // Determine if we should filter locally
     const shouldFilterLocally = filterMode === 'client' || filterMode === 'client&server';
 
-    if (isControlled && filterMode === 'server') {
+    if (isServerPagination && filterMode === 'server') {
       // Server mode with controlled data - parent handles everything, just sort
       return sortConfig.column ? sortData(data, sortConfig.column, sortConfig.direction) : data;
     }
@@ -133,19 +141,19 @@ export const useDataGrid = <T extends BaseRowData>({
     }
 
     return result;
-  }, [data, searchTerm, activeFilters, sortConfig, isControlled, filterMode]);
+  }, [data, searchTerm, activeFilters, sortConfig, isServerPagination, filterMode]);
 
   // ===== Pagination =====
   const paginatedData = useMemo(() => {
-    if (isControlled) return data; // Parent handles pagination
+    if (isServerPagination) return data; // Parent handles pagination
 
     const start = (currentPage - 1) * currentPageSize;
     return processedData.slice(start, start + currentPageSize);
-  }, [processedData, currentPage, currentPageSize, isControlled, data]);
+  }, [processedData, currentPage, currentPageSize, isServerPagination, data]);
 
   // ===== Pagination Info =====
   const paginationInfo = useMemo((): PaginationInfo => {
-    const total = isControlled ? (externalTotalRecords ?? 0) : processedData.length;
+    const total = isServerPagination ? (externalTotalRecords ?? 0) : processedData.length;
     const totalPages = Math.ceil(total / currentPageSize) || 1;
     const start = total === 0 ? 0 : (currentPage - 1) * currentPageSize + 1;
     const end = Math.min(currentPage * currentPageSize, total);
@@ -160,7 +168,7 @@ export const useDataGrid = <T extends BaseRowData>({
       hasNext: currentPage < totalPages,
       hasPrevious: currentPage > 1,
     };
-  }, [processedData, currentPage, currentPageSize, isControlled, externalTotalRecords]);
+  }, [processedData, currentPage, currentPageSize, isServerPagination, externalTotalRecords]);
 
   // ===== Selection =====
   const selectedData = useMemo(() => {
@@ -171,10 +179,10 @@ export const useDataGrid = <T extends BaseRowData>({
   const setSearchTerm = useCallback(
     (term: string) => {
       setSearchTermState(term);
-      if (!isControlled) setInternalPage(1);
+      if (!isServerPagination) setInternalPage(1);
       onSearchChange?.(term);
     },
-    [isControlled, onSearchChange]
+    [isServerPagination, onSearchChange]
   );
 
   const setSort = useCallback(
@@ -184,27 +192,27 @@ export const useDataGrid = <T extends BaseRowData>({
         direction: sortConfig.column === column && sortConfig.direction === 'asc' ? 'desc' : 'asc',
       };
       setSortConfig(newConfig);
-      if (!isControlled) setInternalPage(1);
+      if (!isServerPagination) setInternalPage(1);
       onSortChange?.(newConfig);
     },
-    [sortConfig, isControlled, onSortChange]
+    [sortConfig, isServerPagination, onSortChange]
   );
 
   const setCurrentPage = useCallback(
     (page: number) => {
-      if (!isControlled) setInternalPage(page);
+      if (!isServerPagination) setInternalPage(page);
       onPageChange?.(page, { ...paginationInfo, currentPage: page });
     },
-    [isControlled, paginationInfo, onPageChange]
+    [isServerPagination, paginationInfo, onPageChange]
   );
 
   const setCurrentPageSize = useCallback(
     (size: number) => {
       setCurrentPageSizeState(size);
-      if (!isControlled) setInternalPage(1); // Reset to page 1 when page size changes
+      if (!isServerPagination) setInternalPage(1); // Reset to page 1 when page size changes
       onPageSizeChange?.(size);
     },
-    [isControlled, onPageSizeChange]
+    [isServerPagination, onPageSizeChange]
   );
 
   const navigateNext = useCallback(() => {
@@ -229,7 +237,7 @@ export const useDataGrid = <T extends BaseRowData>({
       const newFilters = [...activeFilters.filter((f) => f.column !== filter.column), fullFilter];
 
       setActiveFilters(newFilters);
-      if (!isControlled) setInternalPage(1);
+      if (!isServerPagination) setInternalPage(1);
 
       // Fire callbacks only for 'server' or 'client&server' modes
       if (filterMode !== 'client') {
@@ -237,7 +245,7 @@ export const useDataGrid = <T extends BaseRowData>({
         onFilterChange?.(newFilters);
       }
     },
-    [activeFilters, isControlled, filterMode, onApplyFilter, onFilterChange]
+    [activeFilters, isServerPagination, filterMode, onApplyFilter, onFilterChange]
   );
 
   const removeFilter = useCallback(
@@ -246,7 +254,7 @@ export const useDataGrid = <T extends BaseRowData>({
       const newFilters = activeFilters.filter((_, i) => i !== index);
 
       setActiveFilters(newFilters);
-      if (!isControlled) setInternalPage(1);
+      if (!isServerPagination) setInternalPage(1);
 
       // Fire callbacks only for 'server' or 'client&server' modes
       if (filterMode !== 'client') {
@@ -254,19 +262,19 @@ export const useDataGrid = <T extends BaseRowData>({
         onFilterChange?.(newFilters);
       }
     },
-    [activeFilters, isControlled, filterMode, onRemoveFilter, onFilterChange]
+    [activeFilters, isServerPagination, filterMode, onRemoveFilter, onFilterChange]
   );
 
   const clearFilters = useCallback(() => {
     setActiveFilters([]);
-    if (!isControlled) setInternalPage(1);
+    if (!isServerPagination) setInternalPage(1);
 
     // Fire callbacks only for 'server' or 'client&server' modes
     if (filterMode !== 'client') {
       onClearFilters?.();
       onFilterChange?.([]);
     }
-  }, [isControlled, filterMode, onClearFilters, onFilterChange]);
+  }, [isServerPagination, filterMode, onClearFilters, onFilterChange]);
 
   // ===== Selection Actions =====
   const selectRow = useCallback((rowId: string, selected: boolean) => {
@@ -340,6 +348,6 @@ export const useDataGrid = <T extends BaseRowData>({
     getRowId,
 
     // Mode
-    isControlled,
+    isServerPagination,
   };
 };

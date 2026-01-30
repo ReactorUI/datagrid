@@ -212,7 +212,7 @@ export interface DataGridProps<T = BaseRowData>
   loading?: boolean;
 
   // ===== EXTERNAL STATE (for server-side scenarios) =====
-  /** Total records for pagination display (server-side) */
+  /** Total records for pagination display (used by both client and server modes) */
   totalRecords?: number;
   /** Whether more data is available (server-side) */
   hasMore?: boolean;
@@ -227,6 +227,13 @@ export interface DataGridProps<T = BaseRowData>
   enableDelete?: boolean;
   enableRefresh?: boolean;
   deleteConfirmation?: boolean;
+
+  /**
+   * Pagination behavior mode:
+   * - 'client' (default): Slices data locally, totalRecords used for display only
+   * - 'server': No local slicing, parent handles pagination via onPageChange/onPageSizeChange
+   */
+  paginationMode?: 'client' | 'server';
 
   /**
    * Filter behavior mode:

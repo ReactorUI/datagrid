@@ -276,10 +276,11 @@ function ServerSideExample() {
   const [loadingState, setLoadingState] = useState<LoadingState>({});
   const [totalRecords, setTotalRecords] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch data from your API
-  const fetchData = async (page: number, filters: ActiveFilter[], search: string) => {
+  const fetchData = async (page: number, size: number, filters: ActiveFilter[], search: string) => {
     setLoadingState({ data: true });
     setError(null);
 
@@ -287,7 +288,7 @@ function ServerSideExample() {
       const response = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ page, pageSize: 25, filters, search }),
+        body: JSON.stringify({ page, pageSize: size, filters, search }),
       });
 
       const result = await response.json();
@@ -301,36 +302,44 @@ function ServerSideExample() {
   };
 
   useEffect(() => {
-    fetchData(1, [], '');
+    fetchData(1, pageSize, [], '');
   }, []);
 
   return (
     <DataGrid
       data={data}
-      loading={loadingState}
+      loadingState={loadingState}
       totalRecords={totalRecords}
       currentPage={currentPage}
       error={error}
-      pageSize={25}
+      pageSize={pageSize}
+      paginationMode="server"
+      filterMode="server"
+      // Pagination callbacks - YOU handle the server call
+      onPageChange={(page) => {
+        setCurrentPage(page);
+        fetchData(page, pageSize, [], '');
+      }}
+      onPageSizeChange={(size) => {
+        setPageSize(size);
+        setCurrentPage(1);
+        fetchData(1, size, [], '');
+      }}
       // Filter callbacks - YOU handle the server call
       onApplyFilter={(filter, allFilters) => {
         setLoadingState({ filter: true });
-        fetchData(1, allFilters, '');
+        fetchData(1, pageSize, allFilters, '');
       }}
       onClearFilters={() => {
-        fetchData(1, [], '');
+        fetchData(1, pageSize, [], '');
       }}
       onSearchChange={(term) => {
         setLoadingState({ search: true });
-        fetchData(1, [], term);
-      }}
-      onPageChange={(page) => {
-        setCurrentPage(page);
-        fetchData(page, [], '');
+        fetchData(1, pageSize, [], term);
       }}
       onTableRefresh={() => {
         setLoadingState({ refresh: true });
-        fetchData(currentPage, [], '');
+        fetchData(currentPage, pageSize, [], '');
       }}
     />
   );
@@ -396,6 +405,7 @@ For large datasets, enable scrollable body with fixed headers:
 <DataGrid
   data={data}
   enableFilters={true}
+  filterMode="server"
   // Called when "Apply Filter" is clicked
   onApplyFilter={(filter, allFilters) => {
     console.log('New filter:', filter);
@@ -493,15 +503,15 @@ For large datasets, enable scrollable body with fixed headers:
 
 ### Data & State
 
-| Prop           | Type             | Default       | Description                              |
-| -------------- | ---------------- | ------------- | ---------------------------------------- |
-| `data`         | `T[]`            | **Required**  | Array of data to display                 |
-| `columns`      | `Column<T>[]`    | Auto-detected | Column definitions                       |
-| `loading`      | `boolean`        | `false`       | Simple loading state (backward compat)   |
-| `loadingState` | `LoadingState`   | `{}`          | Granular loading states                  |
-| `totalRecords` | `number`         | -             | Total records for server-side pagination |
-| `currentPage`  | `number`         | -             | Controlled current page                  |
-| `error`        | `string \| null` | -             | Error message to display                 |
+| Prop           | Type             | Default       | Description                            |
+| -------------- | ---------------- | ------------- | -------------------------------------- |
+| `data`         | `T[]`            | **Required**  | Array of data to display               |
+| `columns`      | `Column<T>[]`    | Auto-detected | Column definitions                     |
+| `loading`      | `boolean`        | `false`       | Simple loading state (backward compat) |
+| `loadingState` | `LoadingState`   | `{}`          | Granular loading states                |
+| `totalRecords` | `number`         | -             | Total records for pagination display   |
+| `currentPage`  | `number`         | -             | Controlled current page                |
+| `error`        | `string \| null` | -             | Error message to display               |
 
 ### Layout & Styling
 
@@ -516,16 +526,22 @@ For large datasets, enable scrollable body with fixed headers:
 
 ### Features
 
-| Prop                 | Type                                      | Default    | Description                 |
-| -------------------- | ----------------------------------------- | ---------- | --------------------------- |
-| `enableSearch`       | `boolean`                                 | `true`     | Show search input           |
-| `enableSorting`      | `boolean`                                 | `true`     | Enable column sorting       |
-| `enableFilters`      | `boolean`                                 | `true`     | Show filter controls        |
-| `enableSelection`    | `boolean`                                 | `true`     | Show row checkboxes         |
-| `enableDelete`       | `boolean`                                 | `false`    | Show delete button          |
-| `enableRefresh`      | `boolean`                                 | `false`    | Show refresh button         |
-| `deleteConfirmation` | `boolean`                                 | `false`    | Confirm before delete       |
-| `filterMode`         | `'client' \| 'server' \| 'client&server'` | `'client'` | Filter behavior (see below) |
+| Prop                 | Type                                      | Default    | Description           |
+| -------------------- | ----------------------------------------- | ---------- | --------------------- |
+| `enableSearch`       | `boolean`                                 | `true`     | Show search input     |
+| `enableSorting`      | `boolean`                                 | `true`     | Enable column sorting |
+| `enableFilters`      | `boolean`                                 | `true`     | Show filter controls  |
+| `enableSelection`    | `boolean`                                 | `true`     | Show row checkboxes   |
+| `enableDelete`       | `boolean`                                 | `false`    | Show delete button    |
+| `enableRefresh`      | `boolean`                                 | `false`    | Show refresh button   |
+| `deleteConfirmation` | `boolean`                                 | `false`    | Confirm before delete |
+| `paginationMode`     | `'client' \| 'server'`                    | `'client'` | Pagination behavior   |
+| `filterMode`         | `'client' \| 'server' \| 'client&server'` | `'client'` | Filter behavior       |
+
+**paginationMode options:**
+
+- `'client'` (default) - Slices data locally, `totalRecords` is display-only
+- `'server'` - No local slicing, parent handles pagination via `onPageChange`/`onPageSizeChange`
 
 **filterMode options:**
 
@@ -640,7 +656,14 @@ import { DataGrid } from '@reactorui/datagrid';
 
 test('handles filter application', async () => {
   const onApplyFilter = jest.fn();
-  render(<DataGrid data={testData} enableFilters={true} onApplyFilter={onApplyFilter} />);
+  render(
+    <DataGrid
+      data={testData}
+      enableFilters={true}
+      filterMode="server"
+      onApplyFilter={onApplyFilter}
+    />
+  );
 
   // Select column, enter value, click Apply
   const selects = screen.getAllByRole('combobox');
@@ -662,6 +685,27 @@ test('applies custom theme', () => {
   const { container } = render(<DataGrid data={testData} theme={customTheme} />);
 
   expect(container.firstChild).toHaveClass('dark:bg-zinc-900');
+});
+
+test('client mode slices data locally', () => {
+  const largeData = Array.from({ length: 50 }, (_, i) => ({ id: i, name: `User ${i}` }));
+  render(<DataGrid data={largeData} pageSize={10} paginationMode="client" />);
+
+  // Should only show 10 rows
+  const rows = screen.getAllByRole('row');
+  expect(rows.length - 1).toBe(10); // minus header
+});
+
+test('server mode does not slice data', () => {
+  const pageData = Array.from({ length: 5 }, (_, i) => ({ id: i, name: `User ${i}` }));
+  render(<DataGrid data={pageData} totalRecords={100} pageSize={10} paginationMode="server" />);
+
+  // Shows all 5 rows (server already sliced)
+  const rows = screen.getAllByRole('row');
+  expect(rows.length - 1).toBe(5);
+
+  // But displays totalRecords
+  expect(screen.getByText(/of 100 records/)).toBeInTheDocument();
 });
 ```
 
@@ -736,6 +780,29 @@ function MyGrid() {
   data={data}
   filterMode="server"  // or "client&server"
   onApplyFilter={(f) => fetchWithFilter(f)}
+/>
+```
+
+### Pagination Mode (New in v1.2.2)
+
+`totalRecords` no longer automatically triggers server-side pagination. Use explicit `paginationMode`:
+
+```tsx
+// Client-side pagination (default) - totalRecords is display only
+<DataGrid
+  data={allData}
+  totalRecords={500}  // Just for display: "Showing 1-25 of 500"
+  pageSize={25}
+  // paginationMode="client" is the default
+/>
+
+// Server-side pagination - parent handles slicing
+<DataGrid
+  data={currentPageData}
+  totalRecords={500}
+  paginationMode="server"  // Explicit opt-in
+  onPageChange={handlePageChange}
+  onPageSizeChange={handlePageSizeChange}
 />
 ```
 

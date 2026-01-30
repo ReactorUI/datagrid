@@ -65,6 +65,7 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
   enableDelete = false,
   enableRefresh = false,
   deleteConfirmation = false,
+  paginationMode = 'client',
   filterMode = 'client',
 
   // Layout
@@ -219,6 +220,7 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
     totalRecords: externalTotalRecords,
     currentPage: externalCurrentPage,
     loading: isDataLoading,
+    paginationMode,
     filterMode,
     onPageChange,
     onPageSizeChange,

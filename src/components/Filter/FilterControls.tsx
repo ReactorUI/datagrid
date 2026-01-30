@@ -347,7 +347,7 @@ export const FilterControls = <T,>({
               zIndex: 99999,
             }}
           >
-            <div className="p-5 space-y-4">
+            <div className="space-y-4">
               {/* Header */}
               <div className="flex items-center justify-between">
                 <h3

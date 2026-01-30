@@ -293,6 +293,131 @@ describe('DataGrid Pagination with Search', () => {
 });
 
 // =============================================================================
+// Pagination Mode
+// =============================================================================
+
+describe('DataGrid Pagination Mode', () => {
+  it('defaults to client mode - slices data locally', async () => {
+    render(<DataGrid data={largeTestData} totalRecords={500} pageSize={5} enableFilters={false} />);
+
+    // Should only show 5 rows despite having 50 in data
+    const rows = screen.getAllByRole('row');
+    expect(rows.length - 1).toBe(5);
+
+    // totalRecords is display only - pagination shows local count
+    expect(screen.getByText(/of 50 records/)).toBeInTheDocument();
+  });
+
+  it('client mode: page size change slices data locally', async () => {
+    render(
+      <DataGrid
+        data={largeTestData}
+        totalRecords={500}
+        pageSize={5}
+        paginationMode="client"
+        enableFilters={false}
+      />
+    );
+
+    let rows = screen.getAllByRole('row');
+    expect(rows.length - 1).toBe(5);
+
+    const pageSizeSelect = screen.getByDisplayValue('5');
+    fireEvent.change(pageSizeSelect, { target: { value: '10' } });
+
+    await waitFor(() => {
+      rows = screen.getAllByRole('row');
+      expect(rows.length - 1).toBe(10);
+    });
+  });
+
+  it('server mode: does not slice data locally', () => {
+    const smallData = generateTestData(5);
+    render(
+      <DataGrid
+        data={smallData}
+        totalRecords={100}
+        pageSize={10}
+        paginationMode="server"
+        enableFilters={false}
+      />
+    );
+
+    // All 5 rows shown (server already sliced)
+    const rows = screen.getAllByRole('row');
+    expect(rows.length - 1).toBe(5);
+
+    // Uses totalRecords for display
+    expect(screen.getByText(/of 100 records/)).toBeInTheDocument();
+  });
+
+  it('server mode: calls onPageSizeChange but does not slice', async () => {
+    const onPageSizeChange = jest.fn();
+    const smallData = generateTestData(5);
+
+    render(
+      <DataGrid
+        data={smallData}
+        totalRecords={100}
+        pageSize={5}
+        paginationMode="server"
+        enableFilters={false}
+        onPageSizeChange={onPageSizeChange}
+      />
+    );
+
+    const pageSizeSelect = screen.getByDisplayValue('5');
+    fireEvent.change(pageSizeSelect, { target: { value: '25' } });
+
+    await waitFor(() => {
+      expect(onPageSizeChange).toHaveBeenCalledWith(25);
+    });
+
+    // Still shows same 5 rows (parent handles refetch)
+    const rows = screen.getAllByRole('row');
+    expect(rows.length - 1).toBe(5);
+  });
+
+  it('server mode: calls onPageChange for navigation', async () => {
+    const onPageChange = jest.fn();
+
+    render(
+      <DataGrid
+        data={generateTestData(10)}
+        totalRecords={100}
+        pageSize={10}
+        paginationMode="server"
+        enableFilters={false}
+        onPageChange={onPageChange}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Next'));
+
+    await waitFor(() => {
+      expect(onPageChange).toHaveBeenCalledWith(2, expect.any(Object));
+    });
+  });
+
+  it('client mode with totalRecords shows correct display', () => {
+    render(
+      <DataGrid
+        data={largeTestData}
+        totalRecords={500}
+        pageSize={10}
+        paginationMode="client"
+        enableFilters={false}
+      />
+    );
+
+    // Client mode ignores totalRecords for pagination calculation
+    // Uses actual data.length
+    expect(screen.getByText(/Page 1 of 5/)).toBeInTheDocument();
+    expect(screen.getByText(/of 50 records/)).toBeInTheDocument();
+  });
+});
+
+// =============================================================================
 // Sort Events
 // =============================================================================
 
