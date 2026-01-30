@@ -293,6 +293,144 @@ describe('DataGrid Pagination with Search', () => {
 });
 
 // =============================================================================
+// Load More
+// =============================================================================
+
+describe('DataGrid Load More', () => {
+  it('does not show Load More button by default', () => {
+    render(<DataGrid data={testData} enableFilters={false} />);
+
+    expect(screen.queryByText('Load More')).not.toBeInTheDocument();
+  });
+
+  it('does not show Load More button when enableLoadMore is false', () => {
+    render(
+      <DataGrid data={testData} enableLoadMore={false} hasMore={true} enableFilters={false} />
+    );
+
+    expect(screen.queryByText('Load More')).not.toBeInTheDocument();
+  });
+
+  it('does not show Load More button when hasMore is false', () => {
+    render(
+      <DataGrid data={testData} enableLoadMore={true} hasMore={false} enableFilters={false} />
+    );
+
+    expect(screen.queryByText('Load More')).not.toBeInTheDocument();
+  });
+
+  it('shows Load More button when enableLoadMore and hasMore are true', () => {
+    render(<DataGrid data={testData} enableLoadMore={true} hasMore={true} enableFilters={false} />);
+
+    expect(screen.getByText('Load More')).toBeInTheDocument();
+  });
+
+  it('calls onLoadMore when Load More button is clicked', async () => {
+    const onLoadMore = jest.fn();
+
+    render(
+      <DataGrid
+        data={testData}
+        enableLoadMore={true}
+        hasMore={true}
+        onLoadMore={onLoadMore}
+        enableFilters={false}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Load More'));
+
+    await waitFor(() => {
+      expect(onLoadMore).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('shows loading state when loadingMore is true', () => {
+    render(
+      <DataGrid
+        data={testData}
+        enableLoadMore={true}
+        hasMore={true}
+        loadingMore={true}
+        enableFilters={false}
+      />
+    );
+
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    expect(screen.queryByText('Load More')).not.toBeInTheDocument();
+  });
+
+  it('disables Load More button when loadingMore is true', () => {
+    const onLoadMore = jest.fn();
+
+    render(
+      <DataGrid
+        data={testData}
+        enableLoadMore={true}
+        hasMore={true}
+        loadingMore={true}
+        onLoadMore={onLoadMore}
+        enableFilters={false}
+      />
+    );
+
+    const button = screen.getByText('Loading...').closest('button');
+    expect(button).toBeDisabled();
+
+    fireEvent.click(button!);
+    expect(onLoadMore).not.toHaveBeenCalled();
+  });
+
+  it('pagination still works with Load More enabled', async () => {
+    render(
+      <DataGrid
+        data={largeTestData}
+        pageSize={10}
+        enableLoadMore={true}
+        hasMore={true}
+        enableFilters={false}
+      />
+    );
+
+    // Should show 10 rows (first page)
+    let rows = screen.getAllByRole('row');
+    expect(rows.length - 1).toBe(10);
+
+    // Change page size
+    const pageSizeSelect = screen.getByDisplayValue('10');
+    fireEvent.change(pageSizeSelect, { target: { value: '25' } });
+
+    await waitFor(() => {
+      rows = screen.getAllByRole('row');
+      expect(rows.length - 1).toBe(25);
+    });
+
+    // Load More button should still be visible
+    expect(screen.getByText('Load More')).toBeInTheDocument();
+  });
+
+  it('hides Load More button when all data is loaded (hasMore becomes false)', () => {
+    const { rerender } = render(
+      <DataGrid data={testData} enableLoadMore={true} hasMore={true} enableFilters={false} />
+    );
+
+    expect(screen.getByText('Load More')).toBeInTheDocument();
+
+    // Simulate all data loaded
+    rerender(
+      <DataGrid
+        data={[...testData, ...testData]}
+        enableLoadMore={true}
+        hasMore={false}
+        enableFilters={false}
+      />
+    );
+
+    expect(screen.queryByText('Load More')).not.toBeInTheDocument();
+  });
+});
+
+// =============================================================================
 // Pagination Mode
 // =============================================================================
 

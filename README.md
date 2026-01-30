@@ -29,6 +29,7 @@ A high-performance, feature-rich React data grid component with TypeScript suppo
 - 🎯 **Rich Event System** - 20+ events covering every user interaction
 - 📊 **Granular Loading States** - Action-specific loading indicators
 - 📜 **Scrollable Layout** - Fixed headers with `maxHeight` and `stickyHeader` props
+- 📥 **Load More Support** - Incremental data loading with continuation tokens
 - ⚡ **Zero Dependencies** - Only React as peer dependency
 
 ## 📦 Installation
@@ -397,6 +398,50 @@ For large datasets, enable scrollable body with fixed headers:
 <DataGrid data={data} maxHeight={500} />
 ```
 
+## 📥 Load More (Incremental Loading)
+
+For large datasets where you don't want to fetch everything upfront, use the Load More pattern. The button appears in the toolbar when more data is available.
+
+```tsx
+import { useState } from 'react';
+import { DataGrid } from '@reactorui/datagrid';
+
+function IncrementalLoadExample() {
+  const [data, setData] = useState([]);
+  const [continuationToken, setContinuationToken] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const handleLoadMore = async () => {
+    setLoadingMore(true);
+    try {
+      const result = await fetchData({ continuationToken });
+      setData((prev) => [...prev, ...result.items]); // Append to existing
+      setContinuationToken(result.continuationToken); // null = no more data
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  return (
+    <DataGrid
+      data={data}
+      enableLoadMore={true}
+      hasMore={continuationToken !== null}
+      loadingMore={loadingMore}
+      onLoadMore={handleLoadMore}
+      pageSize={25} // Pagination still works on loaded data
+    />
+  );
+}
+```
+
+**Key Points:**
+
+- **Button location:** Appears in the toolbar (left of search) when `enableLoadMore && hasMore`
+- **Pagination unaffected:** Client-side pagination works normally on loaded data
+- **Parent manages state:** You control data array, continuation token, and loading state
+- **No total required:** Works with APIs that only return a continuation token
+
 ## 🎯 Event System
 
 ### Filter Events
@@ -538,6 +583,15 @@ For large datasets, enable scrollable body with fixed headers:
 | `paginationMode`     | `'client' \| 'server'`                    | `'client'` | Pagination behavior   |
 | `filterMode`         | `'client' \| 'server' \| 'client&server'` | `'client'` | Filter behavior       |
 
+### Load More
+
+| Prop             | Type         | Default | Description                             |
+| ---------------- | ------------ | ------- | --------------------------------------- |
+| `enableLoadMore` | `boolean`    | `false` | Show "Load More" button in toolbar      |
+| `hasMore`        | `boolean`    | `false` | Whether more data is available to load  |
+| `loadingMore`    | `boolean`    | `false` | Show loading spinner on button          |
+| `onLoadMore`     | `() => void` | -       | Called when Load More button is clicked |
+
 **paginationMode options:**
 
 - `'client'` (default) - Slices data locally, `totalRecords` is display-only
@@ -576,6 +630,7 @@ For large datasets, enable scrollable body with fixed headers:
 | `onSelectionChange`     | `(rows) => void`                      | Selection changed    |
 | `onCellClick`           | `(value, row, column, event) => void` | Cell clicked         |
 | `onBulkDelete`          | `(rows) => void`                      | Delete clicked       |
+| `onLoadMore`            | `() => void`                          | Load More clicked    |
 
 _\* Filter callbacks only fire when `filterMode="server"` or `filterMode="client&server"`_
 
@@ -706,6 +761,23 @@ test('server mode does not slice data', () => {
 
   // But displays totalRecords
   expect(screen.getByText(/of 100 records/)).toBeInTheDocument();
+});
+
+test('shows Load More button when enabled and hasMore', () => {
+  const onLoadMore = jest.fn();
+  render(<DataGrid data={testData} enableLoadMore={true} hasMore={true} onLoadMore={onLoadMore} />);
+
+  const loadMoreButton = screen.getByText('Load More');
+  expect(loadMoreButton).toBeInTheDocument();
+
+  fireEvent.click(loadMoreButton);
+  expect(onLoadMore).toHaveBeenCalledTimes(1);
+});
+
+test('hides Load More button when hasMore is false', () => {
+  render(<DataGrid data={testData} enableLoadMore={true} hasMore={false} />);
+
+  expect(screen.queryByText('Load More')).not.toBeInTheDocument();
 });
 ```
 

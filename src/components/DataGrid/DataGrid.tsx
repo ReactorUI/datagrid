@@ -68,6 +68,12 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
   paginationMode = 'client',
   filterMode = 'client',
 
+  // Load More
+  enableLoadMore = false,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore,
+
   // Layout
   maxHeight,
   stickyHeader = false,
@@ -363,8 +369,39 @@ export const DataGrid = <T extends { [key: string]: any } = any>({
             )}
           </div>
 
-          {/* Right: Search, Refresh, Delete */}
+          {/* Right: Load More, Search, Refresh, Delete */}
           <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Load More Button */}
+            {enableLoadMore && hasMore && (
+              <button
+                onClick={onLoadMore}
+                disabled={loadingMore || isAnyLoading}
+                title="Load more records"
+                className={`${theme.buttonSecondary} flex items-center gap-1.5 ${
+                  loadingMore ? 'opacity-75' : ''
+                }`}
+              >
+                {loadingMore ? (
+                  <>
+                    <Spinner className="w-4 h-4" />
+                    <span className="text-sm">Loading...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                      />
+                    </svg>
+                    <span className="text-sm">Load More</span>
+                  </>
+                )}
+              </button>
+            )}
+
             {enableSearch && (
               <div className="w-64 relative">
                 <SearchInput

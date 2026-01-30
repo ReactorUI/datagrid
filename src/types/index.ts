@@ -214,8 +214,6 @@ export interface DataGridProps<T = BaseRowData>
   // ===== EXTERNAL STATE (for server-side scenarios) =====
   /** Total records for pagination display (used by both client and server modes) */
   totalRecords?: number;
-  /** Whether more data is available (server-side) */
-  hasMore?: boolean;
   /** Error message to display */
   error?: string | null;
 
@@ -242,6 +240,19 @@ export interface DataGridProps<T = BaseRowData>
    * - 'client&server': Filters locally AND fires callback
    */
   filterMode?: 'client' | 'server' | 'client&server';
+
+  // ===== LOAD MORE =====
+  /**
+   * Show "Load More" button to fetch additional batches of data.
+   * Parent manages appending data and tracking continuation token.
+   */
+  enableLoadMore?: boolean;
+  /** Whether more data is available to load (e.g., continuationToken !== null) */
+  hasMore?: boolean;
+  /** Whether a load more request is in progress */
+  loadingMore?: boolean;
+  /** Called when Load More button is clicked */
+  onLoadMore?: () => void;
 
   // ===== PAGINATION =====
   pageSize?: number;
